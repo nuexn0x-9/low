@@ -46,17 +46,18 @@ LOW adalah editor wireframe mobile open-source yang ringan dan dapat di-self-hos
 ### 1. High-Level Architecture
 ```mermaid
 graph TD
-    Client[Browser / React 19 SPA] -->|HTTP / REST| API[FastAPI Backend :8000]
-    Agent[External AI Agents\nCursor / Claude / Codex] -->|X-LOW-Token| AgentConnect[Universal Agent Connect]
+    Client["Browser / React 19 SPA"] -->|HTTP / REST| API["FastAPI Backend :8000"]
+    Agent["External AI Agents<br/>Cursor / Claude / Codex"] -->|X-LOW-Token| AgentConnect["Universal Agent Connect"]
     AgentConnect --> API
-    API --> DocService[Document & Concurrency Engine]
-    API --> AIEngine[AI Import Engine]
-    AIEngine --> MockProvider[Mock Provider (Offline)]
-    AIEngine --> OpenAIProvider[OpenAI Provider (GPT-4o-mini)]
-    DocService --> SQLite[(SQLite with WAL Mode\n/app/data/low.db)]
-    DocService --> Versioning[Document Snapshot Versions]
-    DocService --> Storage[File Uploads / Assets]
+    API --> DocService["Document & Concurrency Engine"]
+    API --> AIEngine["AI Import Engine"]
+    AIEngine --> MockProvider["Mock Provider (Offline)"]
+    AIEngine --> OpenAIProvider["OpenAI Provider (GPT-4o-mini)"]
+    DocService --> SQLite[("SQLite with WAL Mode<br/>/app/data/low.db")]
+    DocService --> Versioning["Document Snapshot Versions"]
+    DocService --> Storage["File Uploads / Assets"]
 ```
+
 
 ### 2. Universal Agent Connect Flow
 ```mermaid
