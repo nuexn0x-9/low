@@ -1,0 +1,69 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+.App {
+  height: 100%;
+}
+
+.low-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.low-scroll::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.low-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+  background-clip: content-box;
+}
+.low-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dot-grid {
+  background-color: #e9e9ec;
+  background-image: radial-gradient(#cfcfd4 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.low-select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@keyframes lowSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes lowFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.low-anim-slide {
+  animation: lowSlideIn 0.26s ease-out;
+}
+.low-anim-fade {
+  animation: lowFadeIn 0.26s ease-out;
+}
