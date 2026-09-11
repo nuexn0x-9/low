@@ -25,8 +25,10 @@ This guide covers deploying **LOW** on your own Linux virtual private server (VP
 
 ### Step 1: Clone and Configure
 ```bash
-git clone https://github.com/your-username/low.git /opt/low
+# Clone the repository
+git clone https://github.com/nuexn0x-9/low.git /opt/low
 cd /opt/low
+
 cp .env.example .env
 ```
 

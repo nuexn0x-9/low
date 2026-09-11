@@ -25,8 +25,9 @@ Docker Compose bundles the FastAPI backend, precompiled React frontend, and pers
 
 ### 2. Clone Repository & Setup Environment
 ```bash
-git clone https://github.com/your-username/low.git
+git clone https://github.com/nuexn0x-9/low.git
 cd low
+
 
 # Copy environment template
 cp .env.example .env

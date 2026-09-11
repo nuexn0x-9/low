@@ -56,3 +56,15 @@ Every generation creates an `AIImportDraft` row:
 - Status: `valid`, `invalid`, or `applied`.
 - Full token usage metadata (prompt tokens, completion tokens, duration in milliseconds).
 - Pre-apply snapshot: before applying an AI patch, a document version snapshot is saved automatically so the user can roll back if needed.
+
+---
+
+## 6. In-App UI Settings (Gear Icon)
+
+Users can configure AI settings directly inside the editor by clicking the **gear icon** in the AI Import panel header:
+- **Active Provider Selector**: Switch between `Mock`, `OpenAI`, `OpenAI Compatible` (Ollama, vLLM, DeepSeek), or `Custom Endpoint`.
+- **API Key Management**: Secure password-masked input with show/hide toggle. Plaintext keys are never echoed in GET responses or audit logs. Stored keys can be cleared with one click.
+- **Connection Test**: Real-time network ping verifying endpoint latency and model availability.
+- **Output Rules**: Default result type (`screen`, `component`, `template`, `prototype_flow`), default frame dimensions (`390x844`), and monochrome styling enforcement.
+- **Safety Limits**: Maximum frames per request (default 5), maximum nodes per frame (default 150), external asset URL rejection, and raw script/HTML sanitization.
+

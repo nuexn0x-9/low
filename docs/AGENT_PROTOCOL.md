@@ -86,3 +86,15 @@ Failure cases:
 
 - **Maximum Payload Size**: 1 MB (1,048,576 bytes) per action request. Exceeding returns `413 Payload Too Large`.
 - **Maximum Batch Operations**: 25 operations per `batch_update`. Exceeding returns `400 Bad Request`.
+
+---
+
+## 6. In-App Agent Connect Settings (Gear Icon)
+
+Clicking the **gear icon** on the Agent Connect header opens the in-app configuration modal:
+- **Server Discovery URL**: Configure public server base URL for instruction prompts, cURL examples, and bridge scripts.
+- **Endpoint Reachability Check**: Quick *Verify Endpoints* button to test route accessibility.
+- **Default Presets & Expiry**: Set default permission preset and session lifetime in minutes.
+- **Instruction Prompt Formats**: Format instructions tailored for Cursor, Claude, Codex, Google Antigravity, or Hermes.
+- **Security Guardrails**: Enforce dry-run simulation first, toggle atomic batch updates, and configure default allowed scopes.
+

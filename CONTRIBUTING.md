@@ -37,7 +37,7 @@ Before submitting code, please ensure your changes adhere to LOW's core architec
 ### Setup Steps
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-username/low.git
+git clone https://github.com/nuexn0x-9/low.git
 cd low
 
 # 2. Setup backend
