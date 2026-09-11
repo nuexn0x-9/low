@@ -21,6 +21,7 @@ ALLOWED_NODE_TYPES = {
     "image",
     "bottomnav",
     "component",
+    "group",
 }
 
 
@@ -65,6 +66,22 @@ def normalize_node(raw: Dict[str, Any], frame_name: str, index: int) -> Dict[str
         "style": style,
     }
 
+    # Group node children validation
+    if node_type == "group":
+        raw_children = raw.get("children", [])
+        if not isinstance(raw_children, list):
+            raise ValueError(f"Group node '{node_id}' in frame '{frame_name}' must have a list of children IDs")
+        # Ensure no self-reference (circular check)
+        if node_id in raw_children:
+            raise ValueError(f"Group node '{node_id}' in frame '{frame_name}' cannot include itself as a child")
+        node["children"] = [str(c) for c in raw_children]
+
+    # Layer workflow flags
+    if "locked" in raw:
+        node["locked"] = bool(raw.get("locked"))
+    if "hidden" in raw:
+        node["hidden"] = bool(raw.get("hidden"))
+
     if "prototype" in raw and isinstance(raw["prototype"], dict):
         proto = raw["prototype"]
         trigger = str(proto.get("trigger", "none"))
@@ -80,6 +97,7 @@ def normalize_node(raw: Dict[str, Any], frame_name: str, index: int) -> Dict[str
         node["prototype"] = proto
 
     return node
+
 
 
 def normalize_frame(raw: Dict[str, Any], index: int) -> Dict[str, Any]:

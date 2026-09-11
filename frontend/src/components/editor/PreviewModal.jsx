@@ -129,18 +129,20 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
                   <span>9:41</span>
                   <span className="tracking-widest text-[#a1a1aa]">• • •</span>
                 </div>
-                {frame?.nodes.map((node) => {
-                  const clickable = !!resolveTarget(frames, node) || node.prototype?.action === "back";
-                  return (
-                    <div
-                      key={node.id}
-                      onClick={() => onNodeClick(node)}
-                      style={{ cursor: clickable ? "pointer" : "default" }}
-                    >
-                      <NodeView node={node} />
-                    </div>
-                  );
-                })}
+                {(frame?.nodes || [])
+                  .filter((node) => !node.hidden)
+                  .map((node) => {
+                    const clickable = !!resolveTarget(frames, node) || node.prototype?.action === "back";
+                    return (
+                      <div
+                        key={node.id}
+                        onClick={() => onNodeClick(node)}
+                        style={{ cursor: clickable ? "pointer" : "default" }}
+                      >
+                        <NodeView node={node} />
+                      </div>
+                    );
+                  })}
 
                 {overlayFrame && (
                   <div
@@ -168,7 +170,9 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
                         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#d4d4d8]" />
                       )}
                       <div className="relative" style={{ minHeight: 200 }}>
-                        {overlayFrame.nodes.map((node) => {
+                        {(overlayFrame.nodes || [])
+                          .filter((node) => !node.hidden)
+                          .map((node) => {
                           const clickable = !!resolveTarget(frames, node) || node.prototype?.action === "back";
                           return (
                             <div

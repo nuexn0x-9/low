@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   Undo2,
   Redo2,
+  HelpCircle,
 } from "lucide-react";
 import { Segmented } from "@/components/primitives/Input";
 import Button from "@/components/primitives/Button";
@@ -54,6 +55,7 @@ export default function TopToolbar({
   onRedo,
   canUndo,
   canRedo,
+  onOpenShortcuts,
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#e4e4e7] bg-white px-3">
@@ -107,6 +109,16 @@ export default function TopToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {onOpenShortcuts && (
+          <button
+            data-testid="shortcuts-btn"
+            title="Keyboard Shortcuts (?)"
+            onClick={onOpenShortcuts}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-[#71717a] transition-colors hover:bg-[#f4f4f5] hover:text-[#18181b]"
+          >
+            <HelpCircle size={15} />
+          </button>
+        )}
         <Segmented
           testid="mode-switch"
           value={mode}

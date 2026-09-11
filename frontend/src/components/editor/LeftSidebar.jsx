@@ -18,6 +18,11 @@ import {
   Trash2,
   GripVertical,
   Bot,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff,
+  Folder,
 } from "lucide-react";
 import { dummyTemplates, importOptions } from "@/data/dummyTemplates";
 import { dummyComponents } from "@/data/dummyComponents";
@@ -45,6 +50,8 @@ const layerIcon = (type) => {
       return Square;
     case "button":
       return MousePointer2;
+    case "group":
+      return Folder;
     case "frame":
       return Frame;
     default:
@@ -155,7 +162,11 @@ export default function LeftSidebar({
   onRenameFrame,
   nodes,
   selectedId,
+  selectedIds = [],
   setSelectedId,
+  setSelectedIds,
+  onToggleLock,
+  onToggleHide,
   onExport,
   onImportClick,
   onImportFile,
@@ -284,19 +295,74 @@ export default function LeftSidebar({
             <SectionHead>{activeFrame?.name || "Screen"}</SectionHead>
             {nodes.map((n) => {
               const Icon = layerIcon(n.type);
-              const active = n.id === selectedId;
+              const active = selectedIds.length ? selectedIds.includes(n.id) : n.id === selectedId;
               return (
-                <button
+                <div
                   key={n.id}
                   data-testid={`layer-${n.id}`}
-                  onClick={() => setSelectedId(n.id)}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
+                  onClick={(e) => {
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                      if (setSelectedIds) {
+                        const current = selectedIds.length ? [...selectedIds] : (selectedId ? [selectedId] : []);
+                        const next = current.includes(n.id)
+                          ? current.filter((id) => id !== n.id)
+                          : [...current, n.id];
+                        setSelectedIds(next);
+                        if (setSelectedId) setSelectedId(next.length === 1 ? next[0] : null);
+                      } else if (setSelectedId) {
+                        setSelectedId(n.id);
+                      }
+                    } else {
+                      if (setSelectedIds) setSelectedIds([n.id]);
+                      if (setSelectedId) setSelectedId(n.id);
+                    }
+                  }}
+                  className={`group flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-xs transition-colors ${
                     active ? "bg-[#f4f4f5] font-medium text-[#18181b]" : "text-[#3f3f46] hover:bg-[#fafafa]"
-                  }`}
+                  } ${n.hidden ? "opacity-45" : ""}`}
                 >
-                  <Icon size={13} className={active ? "text-[#18181b]" : "text-[#a1a1aa]"} />
-                  <span className="truncate">{n.name}</span>
-                </button>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Icon size={13} className={active ? "text-[#18181b]" : "text-[#a1a1aa]"} />
+                    <span className="truncate">{n.name}</span>
+                    {n.type === "group" && (
+                      <span className="rounded bg-[#e4e4e7] px-1 py-0.2 text-[9px] text-[#71717a]">
+                        {n.children?.length || 0}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      data-testid={`lock-node-${n.id}`}
+                      title={n.locked ? "Unlock layer" : "Lock layer"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleLock && onToggleLock(n.id);
+                      }}
+                      className={`rounded p-0.5 transition-colors ${
+                        n.locked
+                          ? "text-[#18181b] opacity-100"
+                          : "text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100"
+                      }`}
+                    >
+                      {n.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                    </button>
+                    <button
+                      data-testid={`hide-node-${n.id}`}
+                      title={n.hidden ? "Show layer" : "Hide layer"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleHide && onToggleHide(n.id);
+                      }}
+                      className={`rounded p-0.5 transition-colors ${
+                        n.hidden
+                          ? "text-[#18181b] opacity-100"
+                          : "text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100"
+                      }`}
+                    >
+                      {n.hidden ? <EyeOff size={11} /> : <Eye size={11} />}
+                    </button>
+                  </div>
+                </div>
               );
             })}
             {nodes.length === 0 && (

@@ -31,6 +31,7 @@ import CanvasArea from "@/components/editor/CanvasArea";
 import RightPropertiesPanel from "@/components/editor/RightPropertiesPanel";
 import BottomStatusBar from "@/components/editor/BottomStatusBar";
 import PreviewModal from "@/components/editor/PreviewModal";
+import KeyboardShortcutsModal from "@/components/editor/KeyboardShortcutsModal";
 
 let counter = 0;
 const uid = (t) => `${t}_${Date.now().toString(36)}_${counter++}`;
@@ -91,12 +92,16 @@ export default function EditorShell() {
   const frames = hist.present;
 
   const [activeFrameId, setActiveFrameId] = useState(() => initialFrames[0]?.id);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const setSelectedId = (nid) => setSelectedIds(nid ? [nid] : []);
+
   const [activeTool, setActiveTool] = useState("select");
   const [mode, setMode] = useState("design");
   const [zoom, setZoom] = useState(0.7);
   const [sidebarTab, setSidebarTab] = useState("layers");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [snappingEnabled, setSnappingEnabled] = useState(true);
 
@@ -112,7 +117,7 @@ export default function EditorShell() {
   const pendingSnap = useRef(null);
   const dragSnap = useRef(null);
   const framesRef = useRef(frames);
-  const clipboardRef = useRef(null); // { type: "node" | "frame", data: any }
+  const clipboardRef = useRef(null); // { type: "nodes" | "node" | "frame", data: any }
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -184,7 +189,7 @@ export default function EditorShell() {
       if (!h.past.length) return h;
       return { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future] };
     });
-    setSelectedId(null);
+    setSelectedIds([]);
     scheduleSave();
   };
 
@@ -193,7 +198,7 @@ export default function EditorShell() {
       if (!h.future.length) return h;
       return { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1) };
     });
-    setSelectedId(null);
+    setSelectedIds([]);
     scheduleSave();
   };
 
@@ -231,13 +236,20 @@ export default function EditorShell() {
     if (!tpl) return;
     const node = { ...tpl, id: uid(kind), x: Math.round(195 - tpl.width / 2), y: 360, style: { ...tpl.style } };
     commit(mapActive((nodes) => [...nodes, node]));
-    setSelectedId(node.id);
+    setSelectedIds([node.id]);
     setActiveTool("select");
   };
 
   const deleteNode = (nid) => {
     commit(mapActive((nodes) => nodes.filter((n) => n.id !== nid)));
-    setSelectedId(null);
+    setSelectedIds((prev) => prev.filter((id) => id !== nid));
+  };
+
+  const deleteSelected = (idsToDelete = selectedIds) => {
+    if (!idsToDelete || !idsToDelete.length) return;
+    commit(mapActive((nodes) => nodes.filter((n) => !idsToDelete.includes(n.id))));
+    setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+    toast.success(`Deleted ${idsToDelete.length} element(s)`);
   };
 
   const handleToolClick = (tool) => {
@@ -251,7 +263,7 @@ export default function EditorShell() {
   // ----- frames -----
   const selectFrame = (fid) => {
     setActiveFrameId(fid);
-    setSelectedId(null);
+    setSelectedIds([]);
   };
 
   const renameFrame = (fid, newName) => {
@@ -263,7 +275,7 @@ export default function EditorShell() {
     const f = blankFrame(`Screen ${frames.length + 1}`);
     commit((fr) => [...fr, f]);
     setActiveFrameId(f.id);
-    setSelectedId(null);
+    setSelectedIds([]);
     toast.success(`Added "${f.name}"`);
   };
 
@@ -285,7 +297,7 @@ export default function EditorShell() {
     };
     commit((fr) => [...fr, cloned]);
     setActiveFrameId(cloned.id);
-    setSelectedId(null);
+    setSelectedIds([]);
     toast.success(`Duplicated "${target.name}"`);
   };
 
@@ -297,7 +309,212 @@ export default function EditorShell() {
     const remaining = frames.filter((f) => f.id !== fid);
     commit(() => remaining);
     if (activeFrameId === fid) setActiveFrameId(remaining[0].id);
-    setSelectedId(null);
+    setSelectedIds([]);
+  };
+
+  // ----- Group & Ungroup -----
+  const groupSelected = () => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const toGroup = nodes.filter((n) => selectedIds.includes(n.id));
+    if (toGroup.length < 2) {
+      toast.message("Select at least 2 elements to group");
+      return;
+    }
+    const minX = Math.min(...toGroup.map((n) => n.x));
+    const minY = Math.min(...toGroup.map((n) => n.y));
+    const maxX = Math.max(...toGroup.map((n) => n.x + n.width));
+    const maxY = Math.max(...toGroup.map((n) => n.y + n.height));
+
+    const groupId = uid("group");
+    const groupNode = {
+      id: groupId,
+      type: "group",
+      name: "Group",
+      x: minX,
+      y: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+      children: toGroup.map((n) => n.id),
+      style: {},
+    };
+
+    commit(
+      mapActive((currNodes) => {
+        const firstIdx = Math.min(...toGroup.map((n) => currNodes.indexOf(n)));
+        const nextNodes = [...currNodes];
+        nextNodes.splice(firstIdx, 0, groupNode);
+        return nextNodes;
+      })
+    );
+    setSelectedIds([groupId]);
+    toast.success("Grouped elements");
+  };
+
+  const ungroupSelected = (targetGroupId) => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const gId =
+      targetGroupId ||
+      selectedIds.find((id) => {
+        const n = nodes.find((node) => node.id === id);
+        return n && n.type === "group";
+      });
+    if (!gId) return;
+    const groupNode = nodes.find((n) => n.id === gId && n.type === "group");
+    if (!groupNode) return;
+
+    commit(mapActive((currNodes) => currNodes.filter((n) => n.id !== gId)));
+    const released = groupNode.children || [];
+    setSelectedIds(released);
+    toast.success("Ungrouped element");
+  };
+
+  // ----- Alignment & Distribute Spacing -----
+  const alignSelected = (alignment) => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const matched = nodes.filter((n) => selectedIds.includes(n.id));
+    if (matched.length === 0) return;
+
+    if (matched.length > 1) {
+      const minX = Math.min(...matched.map((n) => n.x));
+      const minY = Math.min(...matched.map((n) => n.y));
+      const maxX = Math.max(...matched.map((n) => n.x + n.width));
+      const maxY = Math.max(...matched.map((n) => n.y + n.height));
+
+      commit(
+        mapActive((currNodes) =>
+          currNodes.map((n) => {
+            if (!selectedIds.includes(n.id)) return n;
+            const patch = {};
+            if (alignment === "left") patch.x = minX;
+            else if (alignment === "center") patch.x = Math.round(minX + ((maxX - minX) - n.width) / 2);
+            else if (alignment === "right") patch.x = maxX - n.width;
+            else if (alignment === "top") patch.y = minY;
+            else if (alignment === "middle") patch.y = Math.round(minY + ((maxY - minY) - n.height) / 2);
+            else if (alignment === "bottom") patch.y = maxY - n.height;
+            return { ...n, ...patch };
+          })
+        )
+      );
+    } else {
+      // Single node aligned to screen (390 x 844)
+      const n = matched[0];
+      const patch = {};
+      if (alignment === "left") patch.x = 24;
+      else if (alignment === "center") patch.x = Math.round((390 - n.width) / 2);
+      else if (alignment === "right") patch.x = 390 - n.width - 24;
+      else if (alignment === "top") patch.y = 24;
+      else if (alignment === "middle") patch.y = Math.round((844 - n.height) / 2);
+      else if (alignment === "bottom") patch.y = 844 - n.height - 24;
+      commit(mapActive((currNodes) => currNodes.map((node) => (node.id === n.id ? { ...node, ...patch } : node))));
+    }
+  };
+
+  const distributeSelected = (axis) => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const matched = nodes.filter((n) => selectedIds.includes(n.id));
+    if (matched.length < 3) {
+      toast.message("Select at least 3 elements to distribute spacing");
+      return;
+    }
+
+    if (axis === "horizontal") {
+      const sorted = [...matched].sort((a, b) => a.x - b.x);
+      const firstX = sorted[0].x;
+      const lastNode = sorted[sorted.length - 1];
+      const lastR = lastNode.x + lastNode.width;
+      const totalW = sorted.reduce((acc, n) => acc + n.width, 0);
+      const available = lastR - firstX - totalW;
+      const spacing = available / (sorted.length - 1);
+
+      const positions = {};
+      let currX = firstX;
+      sorted.forEach((n) => {
+        positions[n.id] = Math.round(currX);
+        currX += n.width + spacing;
+      });
+
+      commit(
+        mapActive((currNodes) =>
+          currNodes.map((n) => (positions[n.id] !== undefined ? { ...n, x: positions[n.id] } : n))
+        )
+      );
+    } else {
+      const sorted = [...matched].sort((a, b) => a.y - b.y);
+      const firstY = sorted[0].y;
+      const lastNode = sorted[sorted.length - 1];
+      const lastB = lastNode.y + lastNode.height;
+      const totalH = sorted.reduce((acc, n) => acc + n.height, 0);
+      const available = lastB - firstY - totalH;
+      const spacing = available / (sorted.length - 1);
+
+      const positions = {};
+      let currY = firstY;
+      sorted.forEach((n) => {
+        positions[n.id] = Math.round(currY);
+        currY += n.height + spacing;
+      });
+
+      commit(
+        mapActive((currNodes) =>
+          currNodes.map((n) => (positions[n.id] !== undefined ? { ...n, y: positions[n.id] } : n))
+        )
+      );
+    }
+  };
+
+  // ----- Layer Lock, Hide, Reorder -----
+  const toggleLayerLock = (nodeId) => {
+    commit(
+      mapActive((nodes) =>
+        nodes.map((n) => (n.id === nodeId ? { ...n, locked: !n.locked } : n))
+      )
+    );
+  };
+
+  const toggleLayerHide = (nodeId) => {
+    commit(
+      mapActive((nodes) =>
+        nodes.map((n) => (n.id === nodeId ? { ...n, hidden: !n.hidden } : n))
+      )
+    );
+  };
+
+  const reorderLayer = (nodeId, direction) => {
+    if (!nodeId) return;
+    commit(
+      mapActive((nodes) => {
+        const idx = nodes.findIndex((n) => n.id === nodeId);
+        if (idx === -1) return nodes;
+        const next = [...nodes];
+        const [item] = next.splice(idx, 1);
+        if (direction === "front") next.push(item);
+        else if (direction === "back") next.unshift(item);
+        else if (direction === "forward") next.splice(Math.min(next.length, idx + 1), 0, item);
+        else if (direction === "backward") next.splice(Math.max(0, idx - 1), 0, item);
+        return next;
+      })
+    );
+  };
+
+  const nudgeSelection = (dx, dy) => {
+    if (!selectedIds.length) return;
+    commitCoalesced(
+      mapActive((nodes) =>
+        nodes.map((n) =>
+          selectedIds.includes(n.id)
+            ? { ...n, x: Math.round(n.x + dx), y: Math.round(n.y + dy) }
+            : n
+        )
+      )
+    );
   };
 
   // ----- library drop -----
@@ -307,7 +524,7 @@ export default function EditorShell() {
       const f = frameFromTemplate(payload.preset, payload.name);
       commit((fr) => [...fr, f]);
       setActiveFrameId(f.id);
-      setSelectedId(null);
+      setSelectedIds([]);
       toast.success(`Added "${payload.name}" screen`);
       return;
     }
@@ -322,7 +539,7 @@ export default function EditorShell() {
     };
     commit((fr) => fr.map((f) => (f.id === fid ? { ...f, nodes: [...f.nodes, node] } : f)));
     setActiveFrameId(fid);
-    setSelectedId(node.id);
+    setSelectedIds([node.id]);
     toast.success(`Added ${spec.name}`);
   };
 
@@ -347,7 +564,7 @@ export default function EditorShell() {
         const parsed = parseImportJSON(String(reader.result));
         commit(() => parsed);
         setActiveFrameId(parsed[0].id);
-        setSelectedId(null);
+        setSelectedIds([]);
         toast.success(`Imported ${parsed.length} screen(s)`);
       } catch (err) {
         toast.error("Invalid LOW JSON file");
@@ -389,7 +606,6 @@ export default function EditorShell() {
         const merged = [...prevFrames];
         for (const inf of incoming) {
           if (existingIds.has(inf.id)) {
-            // Replace existing or suffix
             const idx = merged.findIndex((f) => f.id === inf.id);
             merged[idx] = inf;
           } else {
@@ -545,41 +761,59 @@ export default function EditorShell() {
 
   // ----- keyboard & clipboard -----
   const copySelection = () => {
-    if (selectedId) {
-      const activeF = framesRef.current.find((f) => f.id === activeFrameId);
-      const node = activeF?.nodes.find((n) => n.id === selectedId);
-      if (node) {
-        clipboardRef.current = { type: "node", data: JSON.parse(JSON.stringify(node)) };
-        toast.success(`Copied "${node.name}"`);
-      }
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const selectedList = nodes.filter((n) => selectedIds.includes(n.id));
+
+    if (selectedList.length > 0) {
+      clipboardRef.current = {
+        type: "nodes",
+        data: JSON.parse(JSON.stringify(selectedList)),
+      };
+      toast.success(`Copied ${selectedList.length} element(s)`);
     } else if (activeFrameId) {
-      const activeF = framesRef.current.find((f) => f.id === activeFrameId);
-      if (activeF) {
-        clipboardRef.current = { type: "frame", data: JSON.parse(JSON.stringify(activeF)) };
-        toast.success(`Copied screen "${activeF.name}"`);
-      }
+      clipboardRef.current = {
+        type: "frame",
+        data: JSON.parse(JSON.stringify(activeF)),
+      };
+      toast.success(`Copied screen "${activeF.name}"`);
     }
   };
 
   const pasteSelection = () => {
     const item = clipboardRef.current;
     if (!item) return;
-    if (item.type === "node") {
-      const source = item.data;
-      const newNode = {
-        ...source,
-        id: uid(source.type || "node"),
-        name: `${source.name} Copy`,
-        x: (source.x || 0) + 16,
-        y: (source.y || 0) + 16,
-        style: { ...source.style },
-        prototype: source.prototype ? { ...source.prototype } : undefined,
-      };
-      commit(mapActive((nodes) => [...nodes, newNode]));
-      setSelectedId(newNode.id);
-      // Update clipboard offset for repeated pastes
-      clipboardRef.current = { type: "node", data: newNode };
-      toast.success(`Pasted "${newNode.name}"`);
+
+    if (item.type === "nodes" || item.type === "node") {
+      const rawList = item.type === "nodes" ? item.data : [item.data];
+      if (!rawList.length) return;
+
+      const idMap = {};
+      rawList.forEach((n) => {
+        idMap[n.id] = uid(n.type || "node");
+      });
+
+      const newNodes = rawList.map((source) => {
+        const cloned = {
+          ...source,
+          id: idMap[source.id],
+          name: `${source.name} Copy`,
+          x: (source.x || 0) + 20,
+          y: (source.y || 0) + 20,
+          style: { ...source.style },
+          prototype: source.prototype ? { ...source.prototype } : undefined,
+        };
+        if (source.type === "group" && Array.isArray(source.children)) {
+          cloned.children = source.children.map((cid) => idMap[cid] || cid);
+        }
+        return cloned;
+      });
+
+      commit(mapActive((nodes) => [...nodes, ...newNodes]));
+      setSelectedIds(newNodes.map((n) => n.id));
+      clipboardRef.current = { type: "nodes", data: newNodes };
+      toast.success(`Pasted ${newNodes.length} element(s)`);
     } else if (item.type === "frame") {
       const source = item.data;
       const newF = {
@@ -595,29 +829,42 @@ export default function EditorShell() {
       };
       commit((fr) => [...fr, newF]);
       setActiveFrameId(newF.id);
-      setSelectedId(null);
+      setSelectedIds([]);
       toast.success(`Pasted screen "${newF.name}"`);
     }
   };
 
   const duplicateSelection = () => {
-    if (selectedId) {
-      const activeF = framesRef.current.find((f) => f.id === activeFrameId);
-      const node = activeF?.nodes.find((n) => n.id === selectedId);
-      if (node) {
-        const clonedNode = {
-          ...node,
-          id: uid(node.type || "node"),
-          name: `${node.name} Copy`,
-          x: (node.x || 0) + 16,
-          y: (node.y || 0) + 16,
-          style: { ...node.style },
-          prototype: node.prototype ? { ...node.prototype } : undefined,
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const selectedList = nodes.filter((n) => selectedIds.includes(n.id));
+
+    if (selectedList.length > 0) {
+      const idMap = {};
+      selectedList.forEach((n) => {
+        idMap[n.id] = uid(n.type || "node");
+      });
+
+      const newNodes = selectedList.map((n) => {
+        const cloned = {
+          ...n,
+          id: idMap[n.id],
+          name: `${n.name} Copy`,
+          x: (n.x || 0) + 16,
+          y: (n.y || 0) + 16,
+          style: { ...n.style },
+          prototype: n.prototype ? { ...n.prototype } : undefined,
         };
-        commit(mapActive((nodes) => [...nodes, clonedNode]));
-        setSelectedId(clonedNode.id);
-        toast.success(`Duplicated "${node.name}"`);
-      }
+        if (n.type === "group" && Array.isArray(n.children)) {
+          cloned.children = n.children.map((cid) => idMap[cid] || cid);
+        }
+        return cloned;
+      });
+
+      commit(mapActive((curr) => [...curr, ...newNodes]));
+      setSelectedIds(newNodes.map((n) => n.id));
+      toast.success(`Duplicated ${newNodes.length} element(s)`);
     } else if (activeFrameId) {
       duplicateFrame(activeFrameId);
     }
@@ -626,38 +873,74 @@ export default function EditorShell() {
   useEffect(() => {
     const handler = (e) => {
       const tag = (e.target.tagName || "").toLowerCase();
-      const typing = tag === "input" || tag === "select" || tag === "textarea";
+      const typing = tag === "input" || tag === "select" || tag === "textarea" || e.target.isContentEditable;
+      if (typing) return;
+
       const meta = e.metaKey || e.ctrlKey;
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSelectedIds([]);
+        return;
+      }
+
       if (meta && e.key.toLowerCase() === "z") {
         e.preventDefault();
         e.shiftKey ? redo() : undo();
       } else if (meta && e.key.toLowerCase() === "y") {
         e.preventDefault();
         redo();
-      } else if (!typing && meta && e.key.toLowerCase() === "c") {
+      } else if (meta && e.key.toLowerCase() === "c") {
         e.preventDefault();
         copySelection();
-      } else if (!typing && meta && e.key.toLowerCase() === "v") {
+      } else if (meta && e.key.toLowerCase() === "v") {
         e.preventDefault();
         pasteSelection();
-      } else if (!typing && meta && e.key.toLowerCase() === "d") {
+      } else if (meta && e.key.toLowerCase() === "d") {
         e.preventDefault();
         duplicateSelection();
-      } else if (!typing && (e.key === "Delete" || e.key === "Backspace") && selectedId) {
+      } else if (meta && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        deleteNode(selectedId);
+        if (e.shiftKey) ungroupSelected();
+        else groupSelected();
+      } else if (meta && (e.key === "]" || e.key === "}")) {
+        e.preventDefault();
+        if (selectedIds[0]) reorderLayer(selectedIds[0], e.shiftKey ? "front" : "forward");
+      } else if (meta && (e.key === "[" || e.key === "{")) {
+        e.preventDefault();
+        if (selectedIds[0]) reorderLayer(selectedIds[0], e.shiftKey ? "back" : "backward");
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedIds.length > 0) {
+          e.preventDefault();
+          deleteSelected();
+        }
+      } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        if (selectedIds.length > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
+          const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+          const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+          nudgeSelection(dx, dy);
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, activeFrameId]);
+  }, [selectedIds, activeFrameId]);
 
   if (!project) return null;
 
   const activeFrame = frames.find((f) => f.id === activeFrameId) || frames[0];
   const activeNodes = activeFrame ? activeFrame.nodes : [];
-  const selected = activeNodes.find((n) => n.id === selectedId) || null;
+  const selectedNodes = activeNodes.filter((n) => selectedIds.includes(n.id));
+  const selected = selectedNodes.length === 1 ? selectedNodes[0] : null;
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[#f4f4f5] text-[#18181b]">
@@ -677,6 +960,7 @@ export default function EditorShell() {
         mode={mode}
         setMode={setMode}
         onPreview={() => setPreviewOpen(true)}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
         onExit={() => navigate("/")}
         projectName={project.name}
         onUndo={undo}
@@ -697,7 +981,11 @@ export default function EditorShell() {
           onRenameFrame={renameFrame}
           nodes={activeNodes}
           selectedId={selectedId}
+          selectedIds={selectedIds}
           setSelectedId={setSelectedId}
+          setSelectedIds={setSelectedIds}
+          onToggleLock={toggleLayerLock}
+          onToggleHide={toggleLayerHide}
           onExport={doExport}
           onImportClick={() => fileInputRef.current?.click()}
           onImportFile={doImportFile}
@@ -707,7 +995,6 @@ export default function EditorShell() {
             session: agentSession,
             baseUrl: AGENT_BASE_URL,
             connecting: agentConnecting,
-
             events: agentEvents,
             onStart: startAgent,
             onStop: stopAgent,
@@ -726,7 +1013,9 @@ export default function EditorShell() {
           activeFrameId={activeFrameId}
           selectFrame={selectFrame}
           selectedId={selectedId}
+          selectedIds={selectedIds}
           setSelectedId={setSelectedId}
+          setSelectedIds={setSelectedIds}
           updateNodeLive={updateNodeLive}
           beginTransaction={beginTransaction}
           endTransaction={endTransaction}
@@ -737,8 +1026,14 @@ export default function EditorShell() {
         />
         <RightPropertiesPanel
           node={selected}
+          selectedNodes={selectedNodes}
           updateNode={updateNode}
           deleteNode={deleteNode}
+          deleteNodes={deleteSelected}
+          onGroup={groupSelected}
+          onUngroup={ungroupSelected}
+          onAlign={alignSelected}
+          onDistribute={distributeSelected}
           mode={mode}
           frames={frames}
         />
@@ -762,6 +1057,10 @@ export default function EditorShell() {
           startFrameId={activeFrameId}
           onClose={() => setPreviewOpen(false)}
         />
+      )}
+
+      {shortcutsOpen && (
+        <KeyboardShortcutsModal onClose={() => setShortcutsOpen(false)} />
       )}
     </div>
   );

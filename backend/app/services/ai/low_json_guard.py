@@ -11,7 +11,9 @@ ALLOWED_NODE_TYPES = {
     "button",
     "input",
     "bottomnav",
+    "group",
 }
+
 
 ALLOWED_PROTOTYPE_ACTIONS = {"none", "navigate", "back", "overlay"}
 ALLOWED_OVERLAY_TYPES = {"bottom-sheet", "centered-dialog"}
@@ -143,6 +145,20 @@ def validate_and_guard_ai_patch(
                 "text": sanitize_text(n.get("text", "")),
                 "style": style,
             }
+
+            if n_type == "group":
+                raw_children = n.get("children", [])
+                if isinstance(raw_children, list):
+                    # Filter out self-reference
+                    guarded_node["children"] = [str(c) for c in raw_children if str(c) != n_id]
+                else:
+                    guarded_node["children"] = []
+
+            if "locked" in n:
+                guarded_node["locked"] = bool(n.get("locked"))
+            if "hidden" in n:
+                guarded_node["hidden"] = bool(n.get("hidden"))
+
 
             if "prototype" in n and isinstance(n["prototype"], dict):
                 proto = n["prototype"]

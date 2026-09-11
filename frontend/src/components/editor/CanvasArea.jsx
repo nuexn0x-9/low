@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { FRAME } from "@/data/storage";
 import NodeView from "@/components/editor/NodeView";
 
@@ -9,7 +9,9 @@ export default function CanvasArea({
   activeFrameId,
   selectFrame,
   selectedId,
+  selectedIds = [],
   setSelectedId,
+  setSelectedIds,
   updateNodeLive,
   beginTransaction,
   endTransaction,
@@ -20,9 +22,19 @@ export default function CanvasArea({
 }) {
   const drag = useRef(null);
   const frameRefs = useRef({});
-  const [guides, setGuides] = React.useState([]); // [{ type: 'v'|'h', pos: number }]
+  const [guides, setGuides] = useState([]); // [{ type: 'v'|'h', pos: number }]
+  const [marquee, setMarquee] = useState(null); // { frameId, startX, startY, currX, currY }
 
   const activeFrame = frames.find((f) => f.id === activeFrameId);
+
+  // Normalized selection IDs
+  const effectiveSelectedIds =
+    selectedIds && selectedIds.length ? selectedIds : selectedId ? [selectedId] : [];
+
+  const setSelection = (ids) => {
+    if (setSelectedIds) setSelectedIds(ids);
+    if (setSelectedId) setSelectedId(ids.length === 1 ? ids[0] : null);
+  };
 
   const computeSnapping = (nodeId, x, y, width, height) => {
     if (!snappingEnabled || !activeFrame) return { snappedX: x, snappedY: y, newGuides: [] };
@@ -34,7 +46,9 @@ export default function CanvasArea({
     const hTargets = [0, FRAME.height / 2, FRAME.height];
 
     // Sibling targets
-    const siblings = (activeFrame.nodes || []).filter((n) => n.id !== nodeId);
+    const siblings = (activeFrame.nodes || []).filter(
+      (n) => n.id !== nodeId && !n.hidden && !effectiveSelectedIds.includes(n.id)
+    );
     for (const sib of siblings) {
       vTargets.push(sib.x, sib.x + sib.width / 2, sib.x + sib.width);
       hTargets.push(sib.y, sib.y + sib.height / 2, sib.y + sib.height);
@@ -43,7 +57,6 @@ export default function CanvasArea({
     let snappedX = x;
     let snappedY = y;
 
-    // Check X snap points: left edge, center, right edge
     const xEdges = [
       { edge: x, offset: 0 },
       { edge: x + width / 2, offset: width / 2 },
@@ -68,7 +81,6 @@ export default function CanvasArea({
       newGuides.push({ type: "v", pos: guideX });
     }
 
-    // Check Y snap points: top edge, center, bottom edge
     const yEdges = [
       { edge: y, offset: 0 },
       { edge: y + height / 2, offset: height / 2 },
@@ -96,27 +108,77 @@ export default function CanvasArea({
     return { snappedX, snappedY, newGuides };
   };
 
+  // ----- Drag single or multiple nodes -----
   const startMove = (e, node) => {
     e.stopPropagation();
-    setSelectedId(node.id);
+
+    // Ignore locked nodes
+    if (node.locked) return;
+
+    const isModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+
+    if (isModifier) {
+      // Toggle node in selection
+      if (effectiveSelectedIds.includes(node.id)) {
+        setSelection(effectiveSelectedIds.filter((id) => id !== node.id));
+      } else {
+        setSelection([...effectiveSelectedIds, node.id]);
+      }
+      return;
+    }
+
+    // Determine nodes to drag
+    let nodesToDrag = [];
+    if (effectiveSelectedIds.includes(node.id) && effectiveSelectedIds.length > 1) {
+      // Drag all currently selected nodes
+      nodesToDrag = (activeFrame?.nodes || []).filter(
+        (n) => effectiveSelectedIds.includes(n.id) && !n.locked
+      );
+    } else {
+      // Select only this node and drag it
+      setSelection([node.id]);
+      nodesToDrag = [node];
+    }
+
+    // Also include children of any selected group nodes so they move along
+    const childIdsToMove = new Set();
+    nodesToDrag.forEach((n) => {
+      if (n.type === "group" && Array.isArray(n.children)) {
+        n.children.forEach((cid) => childIdsToMove.add(cid));
+      }
+    });
+
+    const childNodesToMove = (activeFrame?.nodes || []).filter(
+      (n) => childIdsToMove.has(n.id) && !nodesToDrag.some((dn) => dn.id === n.id)
+    );
+
+    const allMovingNodes = [...nodesToDrag, ...childNodesToMove];
+
     beginTransaction();
     drag.current = {
       mode: "move",
-      id: node.id,
+      primaryNode: node,
+      nodes: allMovingNodes.map((n) => ({
+        id: n.id,
+        origX: n.x,
+        origY: n.y,
+        width: n.width,
+        height: n.height,
+      })),
       startX: e.clientX,
       startY: e.clientY,
-      origX: node.x,
-      origY: node.y,
       width: node.width,
       height: node.height,
     };
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
 
   const startResize = (e, node, handle) => {
     e.stopPropagation();
-    setSelectedId(node.id);
+    if (node.locked) return;
+    setSelection([node.id]);
     beginTransaction();
     drag.current = {
       mode: "resize",
@@ -138,13 +200,26 @@ export default function CanvasArea({
     if (!d) return;
     const dx = (e.clientX - d.startX) / zoom;
     const dy = (e.clientY - d.startY) / zoom;
+
     if (d.mode === "move") {
-      const rawX = Math.round(d.origX + dx);
-      const rawY = Math.round(d.origY + dy);
-      const { snappedX, snappedY, newGuides } = computeSnapping(d.id, rawX, rawY, d.width, d.height);
-      setGuides(newGuides);
-      updateNodeLive(d.id, { x: Math.round(snappedX), y: Math.round(snappedY) });
-    } else {
+      if (d.nodes.length === 1) {
+        const p = d.nodes[0];
+        const rawX = Math.round(p.origX + dx);
+        const rawY = Math.round(p.origY + dy);
+        const { snappedX, snappedY, newGuides } = computeSnapping(p.id, rawX, rawY, p.width, p.height);
+        setGuides(newGuides);
+        updateNodeLive(p.id, { x: Math.round(snappedX), y: Math.round(snappedY) });
+      } else {
+        // Bulk move
+        setGuides([]);
+        d.nodes.forEach((n) => {
+          updateNodeLive(n.id, {
+            x: Math.round(n.origX + dx),
+            y: Math.round(n.origY + dy),
+          });
+        });
+      }
+    } else if (d.mode === "resize") {
       let { origX: x, origY: y, origW: w, origH: h } = d;
       if (d.handle.includes("e")) w = Math.max(8, d.origW + dx);
       if (d.handle.includes("s")) h = Math.max(8, d.origH + dy);
@@ -157,7 +232,12 @@ export default function CanvasArea({
         y = d.origY + dy;
       }
       setGuides([]);
-      updateNodeLive(d.id, { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) });
+      updateNodeLive(d.id, {
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(w),
+        height: Math.round(h),
+      });
     }
   };
 
@@ -167,6 +247,75 @@ export default function CanvasArea({
     setGuides([]);
     window.removeEventListener("mousemove", onMove);
     window.removeEventListener("mouseup", onUp);
+  };
+
+  // ----- Marquee / Lasso Selection -----
+  const startMarquee = (e, frame) => {
+    e.stopPropagation();
+    const isModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (!isModifier) {
+      setSelection([]);
+    }
+
+    const rect = frameRefs.current[frame.id]?.getBoundingClientRect();
+    if (!rect) return;
+
+    const startX = (e.clientX - rect.left) / zoom;
+    const startY = (e.clientY - rect.top) / zoom;
+
+    const initialMarquee = {
+      frameId: frame.id,
+      startX,
+      startY,
+      currX: startX,
+      currY: startY,
+      isModifier,
+      initialIds: isModifier ? [...effectiveSelectedIds] : [],
+    };
+    setMarquee(initialMarquee);
+
+    const onMarqueeMove = (moveEvt) => {
+      const currX = (moveEvt.clientX - rect.left) / zoom;
+      const currY = (moveEvt.clientY - rect.top) / zoom;
+
+      setMarquee((prev) => (prev ? { ...prev, currX, currY } : null));
+
+      // Calculate marquee box
+      const boxX = Math.min(startX, currX);
+      const boxY = Math.min(startY, currY);
+      const boxW = Math.abs(currX - startX);
+      const boxH = Math.abs(currY - startY);
+
+      // Only check intersection if marquee has reasonable drag threshold
+      if (boxW > 3 || boxH > 3) {
+        const frameNodes = frame.nodes || [];
+        const intersecting = frameNodes.filter((n) => {
+          if (n.locked || n.hidden) return false;
+          return (
+            n.x < boxX + boxW &&
+            n.x + n.width > boxX &&
+            n.y < boxY + boxH &&
+            n.y + n.height > boxY
+          );
+        });
+        const hitIds = intersecting.map((n) => n.id);
+        if (initialMarquee.isModifier) {
+          const merged = Array.from(new Set([...initialMarquee.initialIds, ...hitIds]));
+          setSelection(merged);
+        } else {
+          setSelection(hitIds);
+        }
+      }
+    };
+
+    const onMarqueeUp = () => {
+      setMarquee(null);
+      window.removeEventListener("mousemove", onMarqueeMove);
+      window.removeEventListener("mouseup", onMarqueeUp);
+    };
+
+    window.addEventListener("mousemove", onMarqueeMove);
+    window.addEventListener("mouseup", onMarqueeUp);
   };
 
   const readPayload = (e) => {
@@ -193,14 +342,34 @@ export default function CanvasArea({
   return (
     <main
       data-testid="canvas-area"
-      onMouseDown={() => setSelectedId(null)}
+      onMouseDown={() => setSelection([])}
       className="low-scroll dot-grid low-select-none relative flex-1 overflow-auto"
     >
       <div className="flex min-h-full items-start p-16">
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }} className="flex items-start gap-16">
           {frames.map((frame) => {
             const isActive = frame.id === activeFrameId;
-            const selected = isActive ? frame.nodes.find((n) => n.id === selectedId) : null;
+            const visibleNodes = (frame.nodes || []).filter((n) => !n.hidden);
+            const selectedNodes = isActive
+              ? visibleNodes.filter((n) => effectiveSelectedIds.includes(n.id))
+              : [];
+            const singleSelected = selectedNodes.length === 1 ? selectedNodes[0] : null;
+
+            // Compute combined bounding box for multi-selection
+            let multiBounds = null;
+            if (selectedNodes.length > 1) {
+              const minX = Math.min(...selectedNodes.map((n) => n.x));
+              const minY = Math.min(...selectedNodes.map((n) => n.y));
+              const maxX = Math.max(...selectedNodes.map((n) => n.x + n.width));
+              const maxY = Math.max(...selectedNodes.map((n) => n.y + n.height));
+              multiBounds = {
+                x: minX,
+                y: minY,
+                width: maxX - minX,
+                height: maxY - minY,
+              };
+            }
+
             return (
               <div key={frame.id} className="flex flex-col">
                 <button
@@ -223,9 +392,12 @@ export default function CanvasArea({
                   data-testid={`mobile-frame-${frame.id}`}
                   ref={(el) => (frameRefs.current[frame.id] = el)}
                   onMouseDown={(e) => {
-                    e.stopPropagation();
-                    if (!isActive) selectFrame(frame.id);
-                    else setSelectedId(null);
+                    if (!isActive) {
+                      e.stopPropagation();
+                      selectFrame(frame.id);
+                    } else {
+                      startMarquee(e, frame);
+                    }
                   }}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -237,42 +409,60 @@ export default function CanvasArea({
                   }`}
                   style={{ width: FRAME.width, height: FRAME.height }}
                 >
-                  <div className="flex h-10 items-center justify-between px-6 text-[12px] font-semibold text-[#18181b]">
+                  <div className="pointer-events-none flex h-10 items-center justify-between px-6 text-[12px] font-semibold text-[#18181b]">
                     <span>9:41</span>
                     <span className="tracking-widest text-[#a1a1aa]">• • •</span>
                   </div>
 
-                  {frame.nodes.map((node) => (
-                    <div
-                      key={node.id}
-                      onMouseDown={(e) => {
-                        if (!isActive) {
-                          e.stopPropagation();
-                          selectFrame(frame.id);
-                          return;
-                        }
-                        startMove(e, node);
-                      }}
-                      style={{ position: "absolute", left: 0, top: 0, cursor: isActive ? "move" : "default" }}
-                    >
-                      <div data-testid={`canvas-node-${node.id}`}>
-                        <NodeView node={node} />
+                  {/* Render Visible Nodes */}
+                  {visibleNodes.map((node) => {
+                    const isNodeSelected = effectiveSelectedIds.includes(node.id);
+                    return (
+                      <div
+                        key={node.id}
+                        onMouseDown={(e) => {
+                          if (!isActive) {
+                            e.stopPropagation();
+                            selectFrame(frame.id);
+                            return;
+                          }
+                          startMove(e, node);
+                        }}
+                        style={{
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          cursor: node.locked ? "default" : isActive ? "move" : "default",
+                          pointerEvents: node.locked ? "none" : "auto",
+                        }}
+                      >
+                        <div data-testid={`canvas-node-${node.id}`}>
+                          <NodeView node={node} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
-                  {selected && (
+                  {/* Single Selection Outline with Handles */}
+                  {singleSelected && (
                     <div
                       data-testid="selection-outline"
                       className="pointer-events-none absolute"
-                      style={{ left: selected.x, top: selected.y, width: selected.width, height: selected.height, outline: "1.5px solid #2563eb", outlineOffset: 0 }}
+                      style={{
+                        left: singleSelected.x,
+                        top: singleSelected.y,
+                        width: singleSelected.width,
+                        height: singleSelected.height,
+                        outline: "1.5px solid #2563eb",
+                        outlineOffset: 0,
+                      }}
                     >
                       {HANDLES.map((h) => (
                         <div
                           key={h}
                           onMouseDown={(e) => {
                             e.stopPropagation();
-                            startResize(e, selected, h);
+                            startResize(e, singleSelected, h);
                           }}
                           className="pointer-events-auto absolute h-2 w-2 rounded-[2px] border border-[#2563eb] bg-white"
                           style={{
@@ -284,25 +474,84 @@ export default function CanvasArea({
                           }}
                         />
                       ))}
-                      <div className="absolute -top-5 left-0 rounded-[3px] bg-[#2563eb] px-1.5 text-[10px] font-medium text-white" style={{ whiteSpace: "nowrap" }}>
-                        {selected.name}
+                      <div
+                        className="absolute -top-5 left-0 rounded-[3px] bg-[#2563eb] px-1.5 text-[10px] font-medium text-white"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        {singleSelected.name}
                       </div>
                     </div>
                   )}
 
-                  {isActive && guides.map((g, idx) => (
+                  {/* Multi-Selection Individual Sub-Outlines and Combined Bounding Box */}
+                  {multiBounds && (
+                    <>
+                      {selectedNodes.map((sn) => (
+                        <div
+                          key={sn.id}
+                          data-testid={`selection-sub-outline-${sn.id}`}
+                          className="pointer-events-none absolute"
+                          style={{
+                            left: sn.x,
+                            top: sn.y,
+                            width: sn.width,
+                            height: sn.height,
+                            outline: "1px dashed #2563eb",
+                            outlineOffset: 0,
+                          }}
+                        />
+                      ))}
+                      <div
+                        data-testid="multi-selection-outline"
+                        className="pointer-events-none absolute"
+                        style={{
+                          left: multiBounds.x,
+                          top: multiBounds.y,
+                          width: multiBounds.width,
+                          height: multiBounds.height,
+                          outline: "1.5px solid #2563eb",
+                          outlineOffset: 0,
+                        }}
+                      >
+                        <div
+                          className="absolute -top-5 left-0 rounded-[3px] bg-[#2563eb] px-1.5 text-[10px] font-medium text-white shadow-sm"
+                          style={{ whiteSpace: "nowrap" }}
+                        >
+                          {selectedNodes.length} selected
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Active Marquee Drag Box */}
+                  {marquee && marquee.frameId === frame.id && (
                     <div
-                      key={idx}
-                      data-testid={`snap-guide-${g.type}`}
-                      className="pointer-events-none absolute z-20"
+                      data-testid="marquee-selection-box"
+                      className="pointer-events-none absolute z-30 border border-dashed border-[#2563eb] bg-[#2563eb]/10"
                       style={{
-                        ...(g.type === "v"
-                          ? { left: g.pos, top: 0, bottom: 0, width: 1, borderLeft: "1px dashed #2563eb" }
-                          : { top: g.pos, left: 0, right: 0, height: 1, borderTop: "1px dashed #2563eb" }),
-                        opacity: 0.75,
+                        left: Math.min(marquee.startX, marquee.currX),
+                        top: Math.min(marquee.startY, marquee.currY),
+                        width: Math.abs(marquee.currX - marquee.startX),
+                        height: Math.abs(marquee.currY - marquee.startY),
                       }}
                     />
-                  ))}
+                  )}
+
+                  {/* Snapping Guides */}
+                  {isActive &&
+                    guides.map((g, idx) => (
+                      <div
+                        key={idx}
+                        data-testid={`snap-guide-${g.type}`}
+                        className="pointer-events-none absolute z-20"
+                        style={{
+                          ...(g.type === "v"
+                            ? { left: g.pos, top: 0, bottom: 0, width: 1, borderLeft: "1px dashed #2563eb" }
+                            : { top: g.pos, left: 0, right: 0, height: 1, borderTop: "1px dashed #2563eb" }),
+                          opacity: 0.75,
+                        }}
+                      />
+                    ))}
                 </div>
               </div>
             );

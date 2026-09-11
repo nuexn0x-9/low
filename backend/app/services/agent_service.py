@@ -75,11 +75,19 @@ ACTION_SCOPES = {
     "update_component": ["manage_components", "write_document"],
     "save_template": ["manage_templates", "write_document"],
     "apply_ai_import": ["apply_ai_import", "write_document"],
-    "create_ai_draft": ["run_ai_import"],
     "apply_ai_draft": ["apply_ai_import", "write_document"],
+    "create_ai_draft": ["run_ai_import"],
     "batch_update": ["batch_update", "write_document"],
     "undo_last_agent_change": ["undo_changes"],
+    "group_elements": ["edit_screen", "write_document"],
+    "ungroup_element": ["edit_screen", "write_document"],
+    "align_elements": ["edit_screen", "write_document"],
+    "distribute_elements": ["edit_screen", "write_document"],
+    "set_layer_visibility": ["edit_screen", "write_document"],
+    "set_layer_lock": ["edit_screen", "write_document"],
+    "reorder_layer": ["edit_screen", "write_document"],
 }
+
 
 
 def _new_id(prefix: str) -> str:
@@ -390,12 +398,239 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
 
         return {"ok": True, "executed": len(operations), "results": results}, temp_doc
 
+    if action == "group_elements":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        group_name = params.get("groupName") or "Group"
+        if not screen_id:
+            raise ValueError("screenId is required for group_elements")
+        if not isinstance(node_ids, list) or len(node_ids) < 2:
+            raise ValueError("nodeIds must contain at least 2 element IDs to group")
+
+        target_frame = None
+        for f in doc:
+            if f.get("id") == screen_id:
+                target_frame = f
+                break
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        matched_nodes = [n for n in nodes if n.get("id") in node_ids]
+        if len(matched_nodes) != len(node_ids):
+            raise ValueError("One or more nodeIds not found in screen")
+
+        # Calculate bounding box
+        min_x = min(n.get("x", 0) for n in matched_nodes)
+        min_y = min(n.get("y", 0) for n in matched_nodes)
+        max_r = max(n.get("x", 0) + n.get("width", 0) for n in matched_nodes)
+        max_b = max(n.get("y", 0) + n.get("height", 0) for n in matched_nodes)
+
+        group_id = _new_id("group")
+        group_node = {
+            "id": group_id,
+            "type": "group",
+            "name": group_name,
+            "x": min_x,
+            "y": min_y,
+            "width": max(1, max_r - min_x),
+            "height": max(1, max_b - min_y),
+            "children": node_ids,
+            "style": {},
+        }
+        # Insert group node at position of first selected node
+        first_idx = min(nodes.index(n) for n in matched_nodes)
+        nodes.insert(first_idx, group_node)
+        return {"ok": True, "groupId": group_id, "name": group_name, "children": node_ids}, doc
+
+    if action == "ungroup_element":
+        screen_id = params.get("screenId")
+        group_id = params.get("groupId")
+        if not screen_id or not group_id:
+            raise ValueError("screenId and groupId are required for ungroup_element")
+
+        target_frame = None
+        for f in doc:
+            if f.get("id") == screen_id:
+                target_frame = f
+                break
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        group_node = next((n for n in nodes if n.get("id") == group_id and n.get("type") == "group"), None)
+        if not group_node:
+            raise ValueError(f"group '{group_id}' not found in screen")
+
+        nodes.remove(group_node)
+        return {"ok": True, "ungroupedId": group_id, "children": group_node.get("children", [])}, doc
+
+    if action == "align_elements":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        alignment = str(params.get("alignment", "left")).lower()
+        if not screen_id or not node_ids:
+            raise ValueError("screenId and nodeIds are required for align_elements")
+        if alignment not in ("left", "center", "right", "top", "middle", "bottom"):
+            raise ValueError(f"invalid alignment: {alignment}")
+
+        target_frame = None
+        for f in doc:
+            if f.get("id") == screen_id:
+                target_frame = f
+                break
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        matched = [n for n in nodes if n.get("id") in node_ids]
+        if not matched:
+            raise ValueError("No matching nodes found to align")
+
+        if len(matched) == 1:
+            # Align relative to mobile frame (390 x 844)
+            n = matched[0]
+            if alignment == "left": n["x"] = 0
+            elif alignment == "center": n["x"] = round((390 - n.get("width", 0)) / 2)
+            elif alignment == "right": n["x"] = round(390 - n.get("width", 0))
+            elif alignment == "top": n["y"] = 0
+            elif alignment == "middle": n["y"] = round((844 - n.get("height", 0)) / 2)
+            elif alignment == "bottom": n["y"] = round(844 - n.get("height", 0))
+        else:
+            min_x = min(n.get("x", 0) for n in matched)
+            max_r = max(n.get("x", 0) + n.get("width", 0) for n in matched)
+            min_y = min(n.get("y", 0) for n in matched)
+            max_b = max(n.get("y", 0) + n.get("height", 0) for n in matched)
+
+            for n in matched:
+                if alignment == "left": n["x"] = min_x
+                elif alignment == "center": n["x"] = round(min_x + ((max_r - min_x) - n.get("width", 0)) / 2)
+                elif alignment == "right": n["x"] = round(max_r - n.get("width", 0))
+                elif alignment == "top": n["y"] = min_y
+                elif alignment == "middle": n["y"] = round(min_y + ((max_b - min_y) - n.get("height", 0)) / 2)
+                elif alignment == "bottom": n["y"] = round(max_b - n.get("height", 0))
+
+        return {"ok": True, "alignedCount": len(matched), "alignment": alignment}, doc
+
+    if action == "distribute_elements":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        axis = str(params.get("axis", "horizontal")).lower()
+        if not screen_id or not node_ids or len(node_ids) < 3:
+            raise ValueError("screenId and at least 3 nodeIds are required for distribute_elements")
+
+        target_frame = None
+        for f in doc:
+            if f.get("id") == screen_id:
+                target_frame = f
+                break
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        matched = [n for n in nodes if n.get("id") in node_ids]
+        if len(matched) < 3:
+            raise ValueError("At least 3 matched nodes required for distribution")
+
+        if axis == "horizontal":
+            matched.sort(key=lambda n: n.get("x", 0))
+            first_x = matched[0].get("x", 0)
+            last_n = matched[-1]
+            last_r = last_n.get("x", 0) + last_n.get("width", 0)
+            total_w = sum(n.get("width", 0) for n in matched)
+            available_space = (last_r - first_x) - total_w
+            spacing = available_space / (len(matched) - 1)
+            curr_x = first_x
+            for n in matched:
+                n["x"] = round(curr_x)
+                curr_x += n.get("width", 0) + spacing
+        else:
+            matched.sort(key=lambda n: n.get("y", 0))
+            first_y = matched[0].get("y", 0)
+            last_n = matched[-1]
+            last_b = last_n.get("y", 0) + last_n.get("height", 0)
+            total_h = sum(n.get("height", 0) for n in matched)
+            available_space = (last_b - first_y) - total_h
+            spacing = available_space / (len(matched) - 1)
+            curr_y = first_y
+            for n in matched:
+                n["y"] = round(curr_y)
+                curr_y += n.get("height", 0) + spacing
+
+        return {"ok": True, "distributedCount": len(matched), "axis": axis}, doc
+
+    if action == "set_layer_visibility":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        hidden = bool(params.get("hidden", True))
+        if not screen_id or not node_id:
+            raise ValueError("screenId and nodeId are required for set_layer_visibility")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found in screen")
+
+        node["hidden"] = hidden
+        return {"ok": True, "nodeId": node_id, "hidden": hidden}, doc
+
+    if action == "set_layer_lock":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        locked = bool(params.get("locked", True))
+        if not screen_id or not node_id:
+            raise ValueError("screenId and nodeId are required for set_layer_lock")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found in screen")
+
+        node["locked"] = locked
+        return {"ok": True, "nodeId": node_id, "locked": locked}, doc
+
+    if action == "reorder_layer":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        direction = str(params.get("direction", "forward")).lower()
+        if not screen_id or not node_id:
+            raise ValueError("screenId and nodeId are required for reorder_layer")
+        if direction not in ("forward", "backward", "front", "back"):
+            raise ValueError("direction must be 'forward', 'backward', 'front', or 'back'")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        idx = next((i for i, n in enumerate(nodes) if n.get("id") == node_id), -1)
+        if idx == -1:
+            raise ValueError(f"node '{node_id}' not found in screen")
+
+        node = nodes.pop(idx)
+        if direction == "front":
+            nodes.append(node)
+        elif direction == "back":
+            nodes.insert(0, node)
+        elif direction == "forward":
+            nodes.insert(min(len(nodes), idx + 1), node)
+        elif direction == "backward":
+            nodes.insert(max(0, idx - 1), node)
+
+        return {"ok": True, "nodeId": node_id, "direction": direction}, doc
+
     raise ValueError(f"unknown action: {action}")
 
 
 AGENT_SCHEMA = {
     "name": "LOW Universal Agent Connect API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Read and safely modify a LOW mobile UI/UX design. All mutations are atomic, scoped, and leave an audit log.",
     "auth": {"type": "header", "header": "X-LOW-Token", "note": "Token returned once when session is created. Required for POST /actions."},
     "scopes": ALL_SCOPES,
@@ -417,6 +652,13 @@ AGENT_SCHEMA = {
         {"action": "resize_element", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "width": "number", "height": "number"}},
         {"action": "duplicate_element", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "offsetX": "optional number", "offsetY": "optional number"}},
         {"action": "delete_element", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string"}},
+        {"action": "group_elements", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "groupName": "optional string"}},
+        {"action": "ungroup_element", "scope": "edit_screen", "params": {"screenId": "string", "groupId": "string"}},
+        {"action": "align_elements", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "alignment": "left|center|right|top|middle|bottom"}},
+        {"action": "distribute_elements", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "axis": "horizontal|vertical"}},
+        {"action": "set_layer_visibility", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "hidden": "boolean"}},
+        {"action": "set_layer_lock", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "locked": "boolean"}},
+        {"action": "reorder_layer", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "direction": "forward|backward|front|back"}},
         {"action": "link_prototype", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "target": "screenId", "trigger": "tap", "action": "navigate", "transition": "slide"}},
         {"action": "create_component", "scope": "manage_components", "params": {"name": "string", "node": "object", "category": "optional string"}},
         {"action": "update_component", "scope": "manage_components", "params": {"componentId": "string", "patch": "object"}},
@@ -428,6 +670,7 @@ AGENT_SCHEMA = {
         {"action": "undo_last_agent_change", "scope": "undo_changes", "params": {}},
     ],
 }
+
 
 
 def verify_session_scope(sess: AgentSession, action: str, dry_run: bool = False) -> str:
