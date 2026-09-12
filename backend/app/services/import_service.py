@@ -22,6 +22,8 @@ ALLOWED_NODE_TYPES = {
     "bottomnav",
     "component",
     "group",
+    "componentinstance",
+    "componentInstance",
 }
 
 
@@ -75,6 +77,16 @@ def normalize_node(raw: Dict[str, Any], frame_name: str, index: int) -> Dict[str
         if node_id in raw_children:
             raise ValueError(f"Group node '{node_id}' in frame '{frame_name}' cannot include itself as a child")
         node["children"] = [str(c) for c in raw_children]
+
+    # Component instance validation
+    if node_type in ("componentinstance", "componentinstance"):
+        node["type"] = "componentInstance"
+        comp_id = raw.get("componentId")
+        if not comp_id or not isinstance(comp_id, str) or not comp_id.strip():
+            raise ValueError(f"Node '{node_id}' of type 'componentInstance' must have a non-empty 'componentId'")
+        node["componentId"] = str(comp_id).strip()
+        overrides = raw.get("overrides", {})
+        node["overrides"] = overrides if isinstance(overrides, dict) else {}
 
     # Layer workflow flags
     if "locked" in raw:
@@ -186,6 +198,16 @@ async def import_low_json(session: AsyncSession, project: Project, data: Any) ->
         "frames": normalized_frames,
     }
 
+    if isinstance(data, dict):
+        if "designTokens" in data and isinstance(data["designTokens"], dict):
+            new_content["designTokens"] = data["designTokens"]
+        elif "document" in data and isinstance(data["document"], dict) and "designTokens" in data["document"]:
+            new_content["designTokens"] = data["document"]["designTokens"]
+        if "components" in data and isinstance(data["components"], list):
+            new_content["components"] = data["components"]
+        elif "document" in data and isinstance(data["document"], dict) and "components" in data["document"]:
+            new_content["components"] = data["document"]["components"]
+
     doc.content_json = json.dumps(new_content)
     doc.low_version = low_ver
     doc.revision += 1
@@ -199,7 +221,7 @@ async def export_low_json(session: AsyncSession, project: Project) -> Dict[str, 
     content = json.loads(doc.content_json)
     frames = content.get("frames", [])
 
-    return {
+    res = {
         "lowVersion": doc.low_version or "1.0.0",
         "document": {
             "id": project.id,
@@ -207,3 +229,12 @@ async def export_low_json(session: AsyncSession, project: Project) -> Dict[str, 
             "frames": frames,
         },
     }
+
+    if "designTokens" in content:
+        res["designTokens"] = content["designTokens"]
+        res["document"]["designTokens"] = content["designTokens"]
+    if "components" in content:
+        res["components"] = content["components"]
+        res["document"]["components"] = content["components"]
+
+    return res

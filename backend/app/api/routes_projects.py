@@ -339,3 +339,89 @@ async def apply_ai_import_to_project_route(
         "revision": doc.revision,
         "frames": existing_frames,
     }
+
+
+DEFAULT_DESIGN_TOKENS = {
+    "colors": {
+        "background": "#ffffff",
+        "foreground": "#18181b",
+        "muted": "#71717a",
+        "border": "#d4d4d8",
+        "surface": "#f4f4f5",
+    },
+    "radius": {
+        "sm": 4,
+        "md": 8,
+        "lg": 12,
+        "xl": 16,
+    },
+    "spacing": {
+        "xs": 4,
+        "sm": 8,
+        "md": 16,
+        "lg": 24,
+        "xl": 32,
+    },
+}
+
+
+@router.get("/{project_id}/design-tokens")
+async def get_project_design_tokens(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    res = await db.execute(stmt)
+    proj = res.scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    doc_stmt = select(Document).where(Document.project_id == project_id)
+    doc_res = await db.execute(doc_stmt)
+    doc = doc_res.scalar_one_or_none()
+    tokens = DEFAULT_DESIGN_TOKENS
+    if doc and doc.content_json:
+        try:
+            content = json.loads(doc.content_json)
+            if "designTokens" in content and isinstance(content["designTokens"], dict):
+                tokens = content["designTokens"]
+        except Exception:
+            pass
+    return {"project_id": project_id, "designTokens": tokens}
+
+
+@router.put("/{project_id}/design-tokens")
+async def update_project_design_tokens(
+    project_id: str,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    res = await db.execute(stmt)
+    proj = res.scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    tokens = payload.get("designTokens", payload)
+    if not isinstance(tokens, dict):
+        raise HTTPException(status_code=400, detail="designTokens must be an object")
+
+    doc_stmt = select(Document).where(Document.project_id == project_id)
+    doc_res = await db.execute(doc_stmt)
+    doc = doc_res.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    content = {}
+    if doc.content_json:
+        try:
+            content = json.loads(doc.content_json)
+        except Exception:
+            pass
+    content["designTokens"] = tokens
+    doc.content_json = json.dumps(content)
+    doc.revision += 1
+    await db.commit()
+    await db.refresh(doc)
+    return {"status": "success", "project_id": project_id, "designTokens": tokens}
+

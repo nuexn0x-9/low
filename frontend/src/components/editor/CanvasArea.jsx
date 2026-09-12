@@ -19,11 +19,34 @@ export default function CanvasArea({
   zoom,
   mode,
   snappingEnabled = true,
+  components = [],
+  onCommitNodeText,
 }) {
   const drag = useRef(null);
   const frameRefs = useRef({});
   const [guides, setGuides] = useState([]); // [{ type: 'v'|'h', pos: number }]
   const [marquee, setMarquee] = useState(null); // { frameId, startX, startY, currX, currY }
+  const [editingTextNodeId, setEditingTextNodeId] = useState(null);
+  const [editingTextValue, setEditingTextValue] = useState("");
+
+  const saveEditText = () => {
+    if (editingTextNodeId) {
+      const val = editingTextValue;
+      const targetId = editingTextNodeId;
+      setEditingTextNodeId(null);
+      if (onCommitNodeText) {
+        onCommitNodeText(targetId, val);
+      } else {
+        if (beginTransaction) beginTransaction();
+        if (updateNodeLive) updateNodeLive(targetId, { text: val });
+        if (endTransaction) endTransaction();
+      }
+    }
+  };
+
+  const cancelEditText = () => {
+    setEditingTextNodeId(null);
+  };
 
   const activeFrame = frames.find((f) => f.id === activeFrameId);
 
@@ -392,6 +415,7 @@ export default function CanvasArea({
                   data-testid={`mobile-frame-${frame.id}`}
                   ref={(el) => (frameRefs.current[frame.id] = el)}
                   onMouseDown={(e) => {
+                    if (editingTextNodeId) saveEditText();
                     if (!isActive) {
                       e.stopPropagation();
                       selectFrame(frame.id);
@@ -421,12 +445,22 @@ export default function CanvasArea({
                       <div
                         key={node.id}
                         onMouseDown={(e) => {
+                          if (editingTextNodeId && editingTextNodeId !== node.id) {
+                            saveEditText();
+                          }
                           if (!isActive) {
                             e.stopPropagation();
                             selectFrame(frame.id);
                             return;
                           }
                           startMove(e, node);
+                        }}
+                        onDoubleClick={(e) => {
+                          if (node.type === "text" && !node.locked) {
+                            e.stopPropagation();
+                            setEditingTextNodeId(node.id);
+                            setEditingTextValue(node.text || "");
+                          }
                         }}
                         style={{
                           position: "absolute",
@@ -436,12 +470,70 @@ export default function CanvasArea({
                           pointerEvents: node.locked ? "none" : "auto",
                         }}
                       >
-                        <div data-testid={`canvas-node-${node.id}`}>
-                          <NodeView node={node} />
+                        <div
+                          data-testid={`canvas-node-${node.id}`}
+                          style={{ visibility: editingTextNodeId === node.id ? "hidden" : "visible" }}
+                        >
+                          <NodeView node={node} components={components} />
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* Inline Text Editor Overlay */}
+                  {editingTextNodeId && (() => {
+                    const editNode = visibleNodes.find((n) => n.id === editingTextNodeId);
+                    if (!editNode) return null;
+                    return (
+                      <textarea
+                        data-testid={`inline-text-editor-${editNode.id}`}
+                        autoFocus
+                        ref={(el) => {
+                          if (el) {
+                            el.focus();
+                            el.select();
+                          }
+                        }}
+                        value={editingTextValue}
+                        onChange={(e) => setEditingTextValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (!e.shiftKey) {
+                              e.preventDefault();
+                              saveEditText();
+                            }
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelEditText();
+                          }
+                        }}
+                        onBlur={saveEditText}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        style={{
+                          position: "absolute",
+                          left: editNode.x,
+                          top: editNode.y,
+                          width: Math.max(editNode.width, 120),
+                          minHeight: Math.max(editNode.height, 32),
+                          fontFamily: editNode.style?.fontFamily || "inherit",
+                          fontSize: editNode.style?.fontSize || 14,
+                          fontWeight: editNode.style?.fontWeight || 400,
+                          lineHeight: editNode.style?.lineHeight !== undefined ? editNode.style.lineHeight : 1.2,
+                          letterSpacing: editNode.style?.letterSpacing ? `${editNode.style.letterSpacing}px` : undefined,
+                          textAlign: editNode.style?.textAlign || editNode.style?.align || "left",
+                          color: editNode.style?.color || "#18181b",
+                          background: "#ffffff",
+                          border: "2px solid #2563eb",
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                          outline: "none",
+                          resize: "both",
+                          zIndex: 60,
+                          boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+                        }}
+                      />
+                    );
+                  })()}
 
                   {/* Single Selection Outline with Handles */}
                   {singleSelected && (

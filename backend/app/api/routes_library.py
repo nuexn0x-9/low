@@ -183,7 +183,41 @@ async def delete_component(
 
     await db.delete(comp)
     await db.commit()
-    return {"status": "ok", "message": "Component deleted"}
+    return {"status": "success", "message": "Component deleted"}
+
+
+@router.post("/components/{component_id}/detach")
+async def detach_component(
+    component_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Component).where(Component.id == component_id)
+    res = await db.execute(stmt)
+    comp = res.scalar_one_or_none()
+    if not comp:
+        raise HTTPException(status_code=404, detail="Component not found")
+
+    content = {}
+    try:
+        content = json.loads(comp.content_json)
+    except Exception:
+        pass
+
+    nodes = []
+    if isinstance(content, list):
+        nodes = content
+    elif isinstance(content, dict):
+        if "nodes" in content and isinstance(content["nodes"], list):
+            nodes = content["nodes"]
+        else:
+            nodes = [content]
+
+    return {
+        "status": "success",
+        "component_id": component_id,
+        "name": comp.name,
+        "nodes": nodes,
+    }
 
 
 # ============================================================

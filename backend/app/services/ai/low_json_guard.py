@@ -12,6 +12,8 @@ ALLOWED_NODE_TYPES = {
     "input",
     "bottomnav",
     "group",
+    "componentinstance",
+    "componentInstance",
 }
 
 
@@ -123,14 +125,14 @@ def validate_and_guard_ai_patch(
             style: Dict[str, Any] = {}
             if isinstance(raw_style, dict):
                 for k, v in raw_style.items():
-                    if k in ("fill", "stroke", "color"):
+                    if k in ("fill", "stroke", "color", "fontFamily", "textTransform", "textDecoration"):
                         style[k] = sanitize_text(v)
-                    elif k in ("strokeWidth", "radius", "opacity", "fontSize", "fontWeight"):
+                    elif k in ("strokeWidth", "radius", "opacity", "fontSize", "fontWeight", "lineHeight", "letterSpacing"):
                         try:
                             style[k] = float(v)
                         except (ValueError, TypeError):
                             pass
-                    elif k == "align" and v in ("left", "center", "right"):
+                    elif k in ("align", "textAlign") and v in ("left", "center", "right"):
                         style[k] = v
 
 
@@ -145,6 +147,16 @@ def validate_and_guard_ai_patch(
                 "text": sanitize_text(n.get("text", "")),
                 "style": style,
             }
+
+            if n_type in ("componentinstance", "componentinstance"):
+                guarded_node["type"] = "componentInstance"
+                comp_id = n.get("componentId")
+                if not comp_id or not isinstance(comp_id, str):
+                    errors.append(f"Node '{n_name}' of type 'componentInstance' missing componentId")
+                    continue
+                guarded_node["componentId"] = str(comp_id).strip()
+                overrides = n.get("overrides", {})
+                guarded_node["overrides"] = overrides if isinstance(overrides, dict) else {}
 
             if n_type == "group":
                 raw_children = n.get("children", [])

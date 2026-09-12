@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function NodeView({ node }) {
+function RenderLeafNode({ node }) {
   const s = node.style || {};
   const opacity = (s.opacity ?? 100) / 100;
 
@@ -13,25 +13,32 @@ export default function NodeView({ node }) {
     opacity,
   };
 
+  // 1. Text or Link
   if (node.type === "text" || node.type === "link") {
+    const textAlign = s.textAlign || s.align || "left";
     return (
       <div
         style={{
           ...base,
-          color: s.color,
+          fontFamily: s.fontFamily || "inherit",
           fontSize: s.fontSize,
           fontWeight: s.fontWeight,
-          textAlign: s.align || "left",
-          textDecoration: node.type === "link" ? "underline" : "none",
+          lineHeight: s.lineHeight !== undefined ? s.lineHeight : 1.2,
+          letterSpacing: s.letterSpacing ? `${s.letterSpacing}px` : undefined,
+          textAlign,
+          textTransform: s.textTransform || "none",
+          textDecoration: s.textDecoration || (node.type === "link" ? "underline" : "none"),
+          color: s.color,
           display: "flex",
           alignItems: "center",
           justifyContent:
-            s.align === "center"
+            textAlign === "center"
               ? "center"
-              : s.align === "right"
+              : textAlign === "right"
               ? "flex-end"
               : "flex-start",
-          lineHeight: 1.2,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
         }}
       >
         {node.text}
@@ -39,6 +46,7 @@ export default function NodeView({ node }) {
     );
   }
 
+  // 2. Button or legacy Component
   if (node.type === "button" || node.type === "component") {
     return (
       <div
@@ -48,8 +56,12 @@ export default function NodeView({ node }) {
           border: s.strokeWidth ? `${s.strokeWidth}px solid ${s.stroke}` : "none",
           borderRadius: s.radius,
           color: s.color,
+          fontFamily: s.fontFamily || "inherit",
           fontSize: s.fontSize,
           fontWeight: s.fontWeight,
+          lineHeight: s.lineHeight !== undefined ? s.lineHeight : 1.2,
+          letterSpacing: s.letterSpacing ? `${s.letterSpacing}px` : undefined,
+          textTransform: s.textTransform || "none",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -60,6 +72,7 @@ export default function NodeView({ node }) {
     );
   }
 
+  // 3. Input
   if (node.type === "input") {
     return (
       <div
@@ -69,7 +82,10 @@ export default function NodeView({ node }) {
           border: `${s.strokeWidth || 1}px solid ${s.stroke}`,
           borderRadius: s.radius,
           color: s.color,
+          fontFamily: s.fontFamily || "inherit",
           fontSize: s.fontSize,
+          fontWeight: s.fontWeight,
+          letterSpacing: s.letterSpacing ? `${s.letterSpacing}px` : undefined,
           display: "flex",
           alignItems: "center",
           paddingLeft: 14,
@@ -80,6 +96,7 @@ export default function NodeView({ node }) {
     );
   }
 
+  // 4. Image
   if (node.type === "image") {
     return (
       <div
@@ -103,6 +120,7 @@ export default function NodeView({ node }) {
     );
   }
 
+  // 5. Bottom Navigation
   if (node.type === "bottomnav") {
     return (
       <div
@@ -126,7 +144,7 @@ export default function NodeView({ node }) {
     );
   }
 
-  // rectangle default
+  // 6. Rectangle default
   return (
     <div
       style={{
@@ -137,4 +155,107 @@ export default function NodeView({ node }) {
       }}
     />
   );
+}
+
+export default function NodeView({ node, components = [] }) {
+  if (!node) return null;
+
+  // Component Instance
+  if (node.type === "componentInstance") {
+    const s = node.style || {};
+    const overrides = node.overrides || {};
+    const effStyle = { ...s, ...(overrides.style || {}) };
+    const effText =
+      overrides.text !== undefined
+        ? overrides.text
+        : node.text !== undefined && node.text !== ""
+        ? node.text
+        : node.name || "Component Instance";
+    const effOpacity = (effStyle.opacity ?? 100) / 100;
+
+    const base = {
+      position: "absolute",
+      left: node.x,
+      top: node.y,
+      width: node.width,
+      height: node.height,
+      opacity: effOpacity,
+    };
+
+    // Check if matching component definition has child nodes to render
+    const compDef = components.find((c) => c.id === node.componentId);
+    if (compDef && Array.isArray(compDef.nodes) && compDef.nodes.length > 0) {
+      return (
+        <div
+          style={{
+            ...base,
+            overflow: "hidden",
+          }}
+        >
+          {compDef.nodes.map((childNode) => {
+            const childStyle = { ...childNode.style };
+            let childText = childNode.text;
+            if (overrides.text !== undefined && childNode.type === "text") {
+              childText = overrides.text;
+            }
+            if (overrides.style) {
+              Object.assign(childStyle, overrides.style);
+            }
+            return (
+              <div
+                key={childNode.id}
+                style={{
+                  position: "absolute",
+                  left: childNode.x,
+                  top: childNode.y,
+                  width: childNode.width,
+                  height: childNode.height,
+                  pointerEvents: "none",
+                }}
+              >
+                <RenderLeafNode
+                  node={{
+                    ...childNode,
+                    text: childText,
+                    style: childStyle,
+                    x: 0,
+                    y: 0,
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          ...base,
+          background: effStyle.fill || "#fafafa",
+          border: effStyle.strokeWidth
+            ? `${effStyle.strokeWidth}px solid ${effStyle.stroke || "#d4d4d8"}`
+            : "1px dashed #71717a",
+          borderRadius: effStyle.radius ?? 8,
+          color: effStyle.color || "#18181b",
+          fontFamily: effStyle.fontFamily || "inherit",
+          fontSize: effStyle.fontSize ?? 14,
+          fontWeight: effStyle.fontWeight ?? 500,
+          lineHeight: effStyle.lineHeight !== undefined ? effStyle.lineHeight : 1.2,
+          letterSpacing: effStyle.letterSpacing ? `${effStyle.letterSpacing}px` : undefined,
+          textAlign: effStyle.textAlign || "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "0 8px",
+          overflow: "hidden",
+        }}
+      >
+        <span className="truncate">{effText}</span>
+      </div>
+    );
+  }
+
+  return <RenderLeafNode node={node} />;
 }

@@ -86,6 +86,12 @@ ACTION_SCOPES = {
     "set_layer_visibility": ["edit_screen", "write_document"],
     "set_layer_lock": ["edit_screen", "write_document"],
     "reorder_layer": ["edit_screen", "write_document"],
+    "create_component_from_selection": ["manage_components", "write_document"],
+    "insert_component_instance": ["edit_screen", "write_document"],
+    "detach_component_instance": ["edit_screen", "write_document"],
+    "update_design_tokens": ["write_document"],
+    "apply_style_preset": ["edit_screen", "write_document"],
+    "update_text_content": ["edit_screen", "write_document"],
 }
 
 
@@ -625,12 +631,170 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
 
         return {"ok": True, "nodeId": node_id, "direction": direction}, doc
 
+    if action == "create_component_from_selection":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        name = params.get("name") or "Component"
+        category = params.get("category", "custom")
+        if not screen_id or not node_ids:
+            raise ValueError("screenId and nodeIds are required for create_component_from_selection")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        matched = [n for n in nodes if n.get("id") in node_ids]
+        if not matched:
+            raise ValueError("No matching nodeIds found in screen")
+
+        comp_id = _new_id("comp")
+        cloned_nodes = [copy.deepcopy(n) for n in matched]
+        min_x = min(n.get("x", 0) for n in matched)
+        min_y = min(n.get("y", 0) for n in matched)
+        max_r = max(n.get("x", 0) + n.get("width", 0) for n in matched)
+        max_b = max(n.get("y", 0) + n.get("height", 0) for n in matched)
+
+        for cn in cloned_nodes:
+            cn["x"] = cn.get("x", 0) - min_x
+            cn["y"] = cn.get("y", 0) - min_y
+
+        comp_def = {
+            "id": comp_id,
+            "name": name,
+            "category": category,
+            "width": max(1, max_r - min_x),
+            "height": max(1, max_b - min_y),
+            "nodes": cloned_nodes,
+        }
+        return {"ok": True, "componentId": comp_id, "name": name, "component": comp_def}, doc
+
+    if action == "insert_component_instance":
+        screen_id = params.get("screenId")
+        comp_id = params.get("componentId")
+        if not screen_id or not comp_id:
+            raise ValueError("screenId and componentId are required for insert_component_instance")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        inst_id = _new_id("inst")
+        inst_node = {
+            "id": inst_id,
+            "type": "componentInstance",
+            "componentId": str(comp_id).strip(),
+            "name": params.get("name") or f"Instance of {comp_id}",
+            "x": params.get("x", 24),
+            "y": params.get("y", 100),
+            "width": params.get("width", 200),
+            "height": params.get("height", 48),
+            "text": params.get("text", ""),
+            "overrides": params.get("overrides", {}),
+            "style": params.get("style", {}),
+        }
+        target_frame.setdefault("nodes", []).append(inst_node)
+        return {"ok": True, "elementId": inst_id, "node": inst_node}, doc
+
+    if action == "detach_component_instance":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        if not screen_id or not node_id:
+            raise ValueError("screenId and nodeId are required for detach_component_instance")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        nodes = target_frame.get("nodes", [])
+        idx = next((i for i, n in enumerate(nodes) if n.get("id") == node_id), -1)
+        if idx == -1:
+            raise ValueError(f"node '{node_id}' not found in screen")
+
+        node = nodes[idx]
+        if node.get("type") not in ("componentInstance", "componentinstance"):
+            raise ValueError(f"node '{node_id}' is not a componentInstance")
+
+        detached_id = _new_id("detached")
+        overrides = node.get("overrides", {})
+        detached_node = {
+            "id": detached_id,
+            "type": "rectangle",
+            "name": node.get("name", "Component").replace(" Instance", "") + " (Detached)",
+            "x": node.get("x", 0),
+            "y": node.get("y", 0),
+            "width": node.get("width", 200),
+            "height": node.get("height", 48),
+            "text": overrides.get("text", node.get("text", "")),
+            "style": {**node.get("style", {}), **overrides.get("style", {})},
+        }
+        nodes[idx] = detached_node
+        return {"ok": True, "detachedId": detached_id, "originalId": node_id}, doc
+
+    if action == "update_design_tokens":
+        tokens = params.get("tokens", {})
+        if not isinstance(tokens, dict):
+            raise ValueError("tokens must be a dictionary")
+        return {"ok": True, "tokens": tokens}, doc
+
+    if action == "apply_style_preset":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        preset = str(params.get("preset", "")).lower().replace(" ", "_").replace("-", "_")
+        if not screen_id or not node_ids or not preset:
+            raise ValueError("screenId, nodeIds, and preset are required for apply_style_preset")
+
+        presets = {
+            "primary_button": {"fill": "#18181b", "radius": 10, "color": "#ffffff", "fontWeight": 600, "fontSize": 15, "align": "center", "opacity": 100},
+            "secondary_button": {"fill": "#f4f4f5", "stroke": "#d4d4d8", "strokeWidth": 1, "radius": 10, "color": "#18181b", "fontWeight": 600, "fontSize": 15, "align": "center", "opacity": 100},
+            "input_field": {"fill": "#ffffff", "stroke": "#d4d4d8", "strokeWidth": 1, "radius": 10, "color": "#18181b", "fontSize": 14, "opacity": 100},
+            "card": {"fill": "#f4f4f5", "stroke": "#e4e4e7", "strokeWidth": 1, "radius": 12, "opacity": 100},
+            "app_bar": {"fill": "#ffffff", "stroke": "#e4e4e7", "strokeWidth": 1, "radius": 0, "opacity": 100},
+            "bottom_navigation": {"fill": "#ffffff", "stroke": "#e4e4e7", "strokeWidth": 1, "radius": 0, "opacity": 100},
+            "bottom_sheet": {"fill": "#ffffff", "stroke": "#e4e4e7", "strokeWidth": 1, "radius": 16, "opacity": 100},
+            "dialog": {"fill": "#ffffff", "stroke": "#e4e4e7", "strokeWidth": 1, "radius": 14, "opacity": 100},
+            "label": {"color": "#71717a", "fontSize": 12, "fontWeight": 500, "letterSpacing": 0.5, "opacity": 100},
+            "heading": {"color": "#18181b", "fontSize": 22, "fontWeight": 700, "lineHeight": 1.2, "opacity": 100},
+            "body_text": {"color": "#3f3f46", "fontSize": 15, "fontWeight": 400, "lineHeight": 1.4, "opacity": 100},
+        }
+        if preset not in presets:
+            raise ValueError(f"Unknown preset '{preset}'. Available: {', '.join(presets.keys())}")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        matched = [n for n in target_frame.get("nodes", []) if n.get("id") in node_ids]
+        preset_style = presets[preset]
+        for n in matched:
+            n.setdefault("style", {}).update(preset_style)
+
+        return {"ok": True, "appliedCount": len(matched), "preset": preset}, doc
+
+    if action == "update_text_content":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        text = str(params.get("text", ""))
+        if not screen_id or not node_id:
+            raise ValueError("screenId and nodeId are required for update_text_content")
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found in screen")
+
+        node["text"] = text
+        return {"ok": True, "nodeId": node_id, "text": text}, doc
+
     raise ValueError(f"unknown action: {action}")
 
 
 AGENT_SCHEMA = {
     "name": "LOW Universal Agent Connect API",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "description": "Read and safely modify a LOW mobile UI/UX design. All mutations are atomic, scoped, and leave an audit log.",
     "auth": {"type": "header", "header": "X-LOW-Token", "note": "Token returned once when session is created. Required for POST /actions."},
     "scopes": ALL_SCOPES,
@@ -659,6 +823,12 @@ AGENT_SCHEMA = {
         {"action": "set_layer_visibility", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "hidden": "boolean"}},
         {"action": "set_layer_lock", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "locked": "boolean"}},
         {"action": "reorder_layer", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "direction": "forward|backward|front|back"}},
+        {"action": "create_component_from_selection", "scope": "manage_components", "params": {"screenId": "string", "nodeIds": "array of strings", "name": "optional string", "category": "optional string"}},
+        {"action": "insert_component_instance", "scope": "edit_screen", "params": {"screenId": "string", "componentId": "string", "x": "optional number", "y": "optional number", "width": "optional number", "height": "optional number", "overrides": "optional object"}},
+        {"action": "detach_component_instance", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string"}},
+        {"action": "update_design_tokens", "scope": "write_document", "params": {"tokens": "object with colors, radius, spacing"}},
+        {"action": "apply_style_preset", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "preset": "primary_button|secondary_button|input_field|card|heading|body_text|label|app_bar|bottom_navigation|bottom_sheet|dialog"}},
+        {"action": "update_text_content", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "text": "string"}},
         {"action": "link_prototype", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "target": "screenId", "trigger": "tap", "action": "navigate", "transition": "slide"}},
         {"action": "create_component", "scope": "manage_components", "params": {"name": "string", "node": "object", "category": "optional string"}},
         {"action": "update_component", "scope": "manage_components", "params": {"componentId": "string", "patch": "object"}},

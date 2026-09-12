@@ -4,6 +4,16 @@ import LeftSidebar from '../LeftSidebar';
 import BottomStatusBar from '../BottomStatusBar';
 import AiImportPanel from '../AiImportPanel';
 import AgentPanel from '../AgentPanel';
+global.IS_REACT_ACT_ENVIRONMENT = true;
+
+beforeAll(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({}),
+    })
+  );
+});
 
 describe('Editor Enhancements & AI Import Engine', () => {
   test('LeftSidebar, BottomStatusBar, and AgentPanel integrity', () => {

@@ -13,6 +13,8 @@ import {
   loadProjectAsync,
   getCurrentRevision,
   setCurrentRevision,
+  DEFAULT_DESIGN_TOKENS,
+  STYLE_PRESETS,
 } from "@/data/storage";
 import {
   createAgentSession,
@@ -105,6 +107,19 @@ export default function EditorShell() {
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [snappingEnabled, setSnappingEnabled] = useState(true);
 
+  const [designTokens, setDesignTokens] = useState(project?.designTokens || DEFAULT_DESIGN_TOKENS);
+  const [components, setComponents] = useState(project?.components || []);
+  const designTokensRef = useRef(designTokens);
+  const componentsRef = useRef(components);
+
+  useEffect(() => {
+    designTokensRef.current = designTokens;
+  }, [designTokens]);
+
+  useEffect(() => {
+    componentsRef.current = components;
+  }, [components]);
+
   const [agentSession, setAgentSession] = useState(null);
   const [agentConnecting, setAgentConnecting] = useState(false);
   const [agentEvents, setAgentEvents] = useState([]);
@@ -130,8 +145,16 @@ export default function EditorShell() {
 
   useEffect(() => {
     loadProjectAsync(id).then((serverProj) => {
-      if (serverProj && serverProj.frames && serverProj.frames.length) {
-        setPresent(serverProj.frames);
+      if (serverProj) {
+        if (serverProj.frames && serverProj.frames.length) {
+          setPresent(serverProj.frames);
+        }
+        if (serverProj.designTokens) {
+          setDesignTokens(serverProj.designTokens);
+        }
+        if (serverProj.components) {
+          setComponents(serverProj.components);
+        }
       }
     });
   }, [id]);
@@ -148,9 +171,17 @@ export default function EditorShell() {
     setSaveStatus("Syncing");
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveProject({ ...project, frames: framesRef.current }, (status) => {
-        setSaveStatus(status);
-      });
+      saveProject(
+        {
+          ...project,
+          frames: framesRef.current,
+          designTokens: designTokensRef.current,
+          components: componentsRef.current,
+        },
+        (status) => {
+          setSaveStatus(status);
+        }
+      );
     }, 600);
   };
 
@@ -517,6 +548,184 @@ export default function EditorShell() {
     );
   };
 
+  // ----- Phase 8 Component and Token Helpers -----
+  const createComponentFromSelection = (name = "Component") => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const matched = nodes.filter((n) => selectedIds.includes(n.id));
+    if (!matched.length) return;
+
+    const minX = Math.min(...matched.map((n) => n.x));
+    const minY = Math.min(...matched.map((n) => n.y));
+    const maxR = Math.max(...matched.map((n) => n.x + n.width));
+    const maxB = Math.max(...matched.map((n) => n.y + n.height));
+    const compW = Math.max(1, maxR - minX);
+    const compH = Math.max(1, maxB - minY);
+
+    const compId = uid("comp");
+    const clonedNodes = matched.map((n) => ({
+      ...n,
+      x: n.x - minX,
+      y: n.y - minY,
+    }));
+
+    const compName = name && name.trim() ? name.trim() : `Component ${components.length + 1}`;
+    const newComp = {
+      id: compId,
+      name: compName,
+      category: "custom",
+      width: compW,
+      height: compH,
+      nodes: clonedNodes,
+    };
+
+    setComponents((prev) => [...prev, newComp]);
+
+    // Replace selected nodes in active frame with componentInstance
+    const instanceNode = {
+      id: uid("instance"),
+      type: "componentInstance",
+      componentId: compId,
+      name: `${compName} Instance`,
+      x: minX,
+      y: minY,
+      width: compW,
+      height: compH,
+      overrides: {},
+      style: {},
+    };
+
+    commit(
+      mapActive((allNodes) => {
+        const remaining = allNodes.filter((n) => !selectedIds.includes(n.id));
+        return [...remaining, instanceNode];
+      })
+    );
+    setSelectedIds([instanceNode.id]);
+    toast.success(`Created component "${compName}"`);
+  };
+
+  const insertComponentInstance = (compId) => {
+    const comp = components.find((c) => c.id === compId);
+    if (!comp) return;
+
+    const instanceNode = {
+      id: uid("instance"),
+      type: "componentInstance",
+      componentId: compId,
+      name: `${comp.name} Instance`,
+      x: 30,
+      y: 120,
+      width: comp.width || 200,
+      height: comp.height || 48,
+      overrides: {},
+      style: {},
+    };
+
+    commit(mapActive((nodes) => [...nodes, instanceNode]));
+    setSelectedIds([instanceNode.id]);
+    toast.success(`Inserted "${comp.name}" instance`);
+  };
+
+  const detachComponentInstance = (nodeId) => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const node = (activeF.nodes || []).find((n) => n.id === nodeId);
+    if (!node || node.type !== "componentInstance") return;
+
+    const comp = components.find((c) => c.id === node.componentId);
+    const overrides = node.overrides || {};
+
+    if (comp && comp.nodes && comp.nodes.length > 0) {
+      const detachedNodes = comp.nodes.map((cn) => {
+        const nextStyle = { ...cn.style, ...(overrides.style || {}) };
+        let nextText = cn.text;
+        if (overrides.text !== undefined && cn.type === "text") {
+          nextText = overrides.text;
+        }
+        return {
+          ...cn,
+          id: uid(cn.type || "node"),
+          x: node.x + cn.x,
+          y: node.y + cn.y,
+          text: nextText,
+          style: nextStyle,
+        };
+      });
+
+      commit(
+        mapActive((allNodes) => {
+          const idx = allNodes.findIndex((n) => n.id === nodeId);
+          if (idx === -1) return allNodes;
+          const updated = [...allNodes];
+          updated.splice(idx, 1, ...detachedNodes);
+          return updated;
+        })
+      );
+      setSelectedIds(detachedNodes.map((n) => n.id));
+    } else {
+      const detachedNode = {
+        id: uid("node"),
+        type: "rectangle",
+        name: `${node.name || "Component"} (Detached)`.replace(" Instance", ""),
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        text: overrides.text !== undefined ? overrides.text : node.text || "",
+        style: { ...node.style, ...(overrides.style || {}) },
+      };
+      commit(
+        mapActive((allNodes) => allNodes.map((n) => (n.id === nodeId ? detachedNode : n)))
+      );
+      setSelectedIds([detachedNode.id]);
+    }
+    toast.success("Detached component instance");
+  };
+
+  const applyTokenToSelected = (tokenType, tokenValue) => {
+    if (!selectedIds.length) {
+      toast.info("Select a layer to apply token");
+      return;
+    }
+    commit(
+      mapActive((nodes) =>
+        nodes.map((n) => {
+          if (!selectedIds.includes(n.id)) return n;
+          if (tokenType === "color") {
+            const nextStyle = { ...n.style };
+            if (n.type === "text" || n.type === "link") {
+              nextStyle.color = tokenValue;
+            } else {
+              nextStyle.fill = tokenValue;
+            }
+            return { ...n, style: nextStyle };
+          }
+          if (tokenType === "radius") {
+            return { ...n, style: { ...n.style, radius: tokenValue } };
+          }
+          return n;
+        })
+      )
+    );
+    toast.success(`Applied ${tokenType} token`);
+  };
+
+  const applyStylePreset = (presetKey, targetNodeIds = selectedIds) => {
+    const preset = STYLE_PRESETS[presetKey];
+    if (!preset || !targetNodeIds.length) return;
+    commit(
+      mapActive((nodes) =>
+        nodes.map((n) => {
+          if (!targetNodeIds.includes(n.id)) return n;
+          return { ...n, style: { ...n.style, ...preset.style } };
+        })
+      )
+    );
+    toast.success(`Applied "${preset.name}" preset`);
+  };
+
   // ----- library drop -----
   const dropItem = (fid, payload, pos) => {
     if (!payload) return;
@@ -545,7 +754,12 @@ export default function EditorShell() {
 
   // ----- export / import -----
   const doExport = () => {
-    const json = exportProjectJSON({ ...project, frames: framesRef.current });
+    const json = exportProjectJSON({
+      ...project,
+      frames: framesRef.current,
+      designTokens: designTokensRef.current,
+      components: componentsRef.current,
+    });
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -563,6 +777,12 @@ export default function EditorShell() {
       try {
         const parsed = parseImportJSON(String(reader.result));
         commit(() => parsed);
+        if (parsed.designTokens) {
+          setDesignTokens(parsed.designTokens);
+        }
+        if (parsed.components && Array.isArray(parsed.components)) {
+          setComponents(parsed.components);
+        }
         setActiveFrameId(parsed[0].id);
         setSelectedIds([]);
         toast.success(`Imported ${parsed.length} screen(s)`);
@@ -575,6 +795,12 @@ export default function EditorShell() {
 
   const handleApplyAiPatch = async (documentPatch, resultType) => {
     if (!documentPatch) return;
+    if (documentPatch.designTokens) {
+      setDesignTokens(documentPatch.designTokens);
+    }
+    if (documentPatch.components && Array.isArray(documentPatch.components)) {
+      setComponents(documentPatch.components);
+    }
     const currentRev = getCurrentRevision();
     try {
       // 1. Attempt backend apply if online (creating automatic snapshot & checking revision)
@@ -1007,6 +1233,15 @@ export default function EditorShell() {
             selectedPreset: agentPreset,
             setSelectedPreset: setAgentPreset,
           }}
+          components={components}
+          onCreateComponentFromSelection={createComponentFromSelection}
+          onInsertComponentInstance={insertComponentInstance}
+          designTokens={designTokens}
+          onUpdateDesignTokens={(toks) => {
+            setDesignTokens(toks);
+            scheduleSave();
+          }}
+          onApplyTokenToSelected={applyTokenToSelected}
         />
         <CanvasArea
           frames={frames}
@@ -1023,6 +1258,8 @@ export default function EditorShell() {
           zoom={zoom}
           mode={mode}
           snappingEnabled={snappingEnabled}
+          components={components}
+          onCommitNodeText={(nid, text) => updateNode(nid, { text })}
         />
         <RightPropertiesPanel
           node={selected}
@@ -1034,6 +1271,9 @@ export default function EditorShell() {
           onUngroup={ungroupSelected}
           onAlign={alignSelected}
           onDistribute={distributeSelected}
+          onDetachInstance={detachComponentInstance}
+          onApplyPreset={applyStylePreset}
+          designTokens={designTokens}
           mode={mode}
           frames={frames}
         />

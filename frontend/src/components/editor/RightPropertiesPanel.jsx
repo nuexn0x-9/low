@@ -13,19 +13,24 @@ import {
   Layers,
   FolderPlus,
   FolderMinus,
+  Sparkles,
+  Sliders,
+  Unlink,
 } from "lucide-react";
 import { Input, Field, Segmented } from "@/components/primitives/Input";
+import { STYLE_PRESETS } from "@/data/storage";
 
-const NumberField = ({ label, value, onChange, testid, suffix, placeholder }) => (
+const NumberField = ({ label, value, onChange, testid, suffix, placeholder, step = 1 }) => (
   <Field label={label}>
     <div className="relative flex-1">
       <input
         data-testid={testid}
         type="number"
+        step={step}
         value={value ?? ""}
         placeholder={placeholder}
         onChange={(e) =>
-          onChange(e.target.value === "" ? 0 : Number(e.target.value))
+          onChange(e.target.value === "" ? undefined : Number(e.target.value))
         }
         className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-2 text-xs text-[#18181b] outline-none transition-colors focus:border-[#18181b]"
       />
@@ -38,7 +43,7 @@ const NumberField = ({ label, value, onChange, testid, suffix, placeholder }) =>
   </Field>
 );
 
-const ColorField = ({ label, value, onChange, testid, placeholder }) => (
+const ColorField = ({ label, value, onChange, testid, placeholder, designTokens }) => (
   <Field label={label}>
     <div className="flex flex-1 items-center gap-1.5 rounded-md border border-[#d4d4d8] bg-white px-1.5">
       <input
@@ -79,14 +84,29 @@ export default function RightPropertiesPanel({
   onUngroup,
   onAlign,
   onDistribute,
+  onDetachInstance,
+  onApplyPreset,
+  designTokens,
   mode,
   frames = [],
 }) {
+  // Style preset applicator helper
+  const handleApplyPreset = (presetKey, targetNodes) => {
+    const preset = STYLE_PRESETS[presetKey];
+    if (!preset) return;
+    if (onApplyPreset) {
+      onApplyPreset(presetKey, targetNodes.map((n) => n.id));
+      return;
+    }
+    targetNodes.forEach((n) => {
+      updateNode(n.id, { style: { ...preset.style } });
+    });
+  };
+
   // If selectedNodes is provided and has multiple elements, render Multi-selection mode
   const isMulti = selectedNodes && selectedNodes.length > 1;
 
   if (isMulti) {
-    // Check if values across selectedNodes are homogeneous or mixed
     const sameProp = (getter) => {
       const first = getter(selectedNodes[0]);
       return selectedNodes.every((n) => getter(n) === first) ? first : undefined;
@@ -102,26 +122,60 @@ export default function RightPropertiesPanel({
         data-testid="properties-panel-multi"
         className="low-scroll flex w-72 shrink-0 flex-col overflow-auto border-l border-[#e4e4e7] bg-white"
       >
-        {/* Header */}
         <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#e4e4e7] px-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#18181b]">
-            <Layers size={13} className="text-[#2563eb]" />
-            <span>Multiple Selection</span>
-            <span className="rounded bg-[#2563eb]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#2563eb]">
-              {selectedNodes.length}
-            </span>
-          </div>
+          <span className="text-xs font-semibold text-[#18181b]">
+            Multiple Selection ({selectedNodes.length})
+          </span>
           <button
             data-testid="bulk-delete-btn"
-            onClick={() => deleteNodes ? deleteNodes(selectedNodes.map((n) => n.id)) : selectedNodes.forEach((n) => deleteNode(n.id))}
-            title="Delete Selected (Delete/Backspace)"
+            onClick={() => {
+              if (deleteNodes) deleteNodes(selectedNodes.map((n) => n.id));
+              else selectedNodes.forEach((n) => deleteNode(n.id));
+            }}
+            title="Delete Selected"
             className="rounded p-1 text-[#a1a1aa] hover:bg-[#f4f4f5] hover:text-[#18181b]"
           >
             <Trash2 size={13} />
           </button>
         </div>
 
-        {/* Alignment & Spacing */}
+        {/* Group / Ungroup Workflow */}
+        <Group title="Selection Workflow">
+          <button
+            data-testid="group-selection-btn"
+            onClick={onGroup}
+            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] transition-colors hover:bg-[#f4f4f5]"
+          >
+            <FolderPlus size={14} />
+            <span>Group Elements (Ctrl+G)</span>
+          </button>
+        </Group>
+
+        {/* Style Presets */}
+        <Group title="Style Presets">
+          <Field label="Preset">
+            <select
+              data-testid="multi-style-preset-select"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleApplyPreset(e.target.value, selectedNodes);
+                  e.target.value = "";
+                }
+              }}
+              className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+            >
+              <option value="" disabled>Apply Style Preset...</option>
+              {Object.entries(STYLE_PRESETS).map(([key, p]) => (
+                <option key={key} value={key}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Group>
+
+        {/* Alignment Tools */}
         <Group title="Alignment">
           <div className="flex items-center justify-between gap-1 rounded-md border border-[#e4e4e7] bg-[#f4f4f5] p-1">
             <button
@@ -174,68 +228,57 @@ export default function RightPropertiesPanel({
               <AlignBottom size={14} />
             </button>
           </div>
-
-          <div className="mt-2 flex items-center gap-1.5">
-            <button
-              data-testid="distribute-h-btn"
-              onClick={() => onDistribute && onDistribute("horizontal")}
-              disabled={selectedNodes.length < 3}
-              title="Distribute Horizontal Spacing"
-              className="flex h-7 flex-1 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-[11px] font-medium text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40"
-            >
-              <AlignHorizontalSpaceAround size={13} />
-              <span>Distribute H</span>
-            </button>
-            <button
-              data-testid="distribute-v-btn"
-              onClick={() => onDistribute && onDistribute("vertical")}
-              disabled={selectedNodes.length < 3}
-              title="Distribute Vertical Spacing"
-              className="flex h-7 flex-1 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-[11px] font-medium text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40"
-            >
-              <AlignVerticalSpaceAround size={13} />
-              <span>Distribute V</span>
-            </button>
-          </div>
         </Group>
 
-        {/* Group / Ungroup Action */}
-        <Group title="Grouping">
-          <button
-            data-testid="group-selection-btn"
-            onClick={onGroup}
-            className="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-[#18181b] bg-[#18181b] text-xs font-medium text-white transition-colors hover:bg-[#27272a]"
-          >
-            <FolderPlus size={14} />
-            <span>Group Elements (Ctrl+G)</span>
-          </button>
-        </Group>
+        {/* Distribute Spacing Tools */}
+        {selectedNodes.length >= 3 && (
+          <Group title="Distribute Spacing">
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                data-testid="distribute-h-btn"
+                onClick={() => onDistribute && onDistribute("horizontal")}
+                className="flex h-7 items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors"
+              >
+                <AlignHorizontalSpaceAround size={13} />
+                <span>Horizontal</span>
+              </button>
+              <button
+                data-testid="distribute-v-btn"
+                onClick={() => onDistribute && onDistribute("vertical")}
+                className="flex h-7 items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b] transition-colors"
+              >
+                <AlignVerticalSpaceAround size={13} />
+                <span>Vertical</span>
+              </button>
+            </div>
+          </Group>
+        )}
 
         {/* Bulk Appearance */}
         <Group title="Bulk Appearance">
           <ColorField
             label="Fill"
-            testid="bulk-prop-fill"
-            placeholder={commonFill === undefined ? "Mixed" : undefined}
+            testid="bulk-fill"
             value={commonFill}
+            placeholder={commonFill === undefined ? "Mixed" : ""}
             onChange={(v) => {
               selectedNodes.forEach((n) => updateNode(n.id, { style: { fill: v } }));
             }}
           />
           <ColorField
             label="Stroke"
-            testid="bulk-prop-stroke"
-            placeholder={commonStroke === undefined ? "Mixed" : undefined}
+            testid="bulk-stroke"
             value={commonStroke}
+            placeholder={commonStroke === undefined ? "Mixed" : ""}
             onChange={(v) => {
               selectedNodes.forEach((n) => updateNode(n.id, { style: { stroke: v } }));
             }}
           />
           <NumberField
             label="Radius"
-            testid="bulk-prop-radius"
-            placeholder={commonRadius === undefined ? "Mixed" : undefined}
+            testid="bulk-radius"
             value={commonRadius}
+            placeholder={commonRadius === undefined ? "Mixed" : ""}
             onChange={(v) => {
               selectedNodes.forEach((n) => updateNode(n.id, { style: { radius: v } }));
             }}
@@ -243,11 +286,11 @@ export default function RightPropertiesPanel({
           <NumberField
             label="Opacity"
             suffix="%"
-            testid="bulk-prop-opacity"
-            placeholder={commonOpacity === undefined ? "Mixed" : undefined}
+            testid="bulk-opacity"
             value={commonOpacity}
+            placeholder={commonOpacity === undefined ? "Mixed" : ""}
             onChange={(v) => {
-              const clamped = Math.max(0, Math.min(100, v));
+              const clamped = Math.max(0, Math.min(100, v ?? 100));
               selectedNodes.forEach((n) => updateNode(n.id, { style: { opacity: clamped } }));
             }}
           />
@@ -278,9 +321,17 @@ export default function RightPropertiesPanel({
   const p = activeNode.prototype || {};
   const isText = activeNode.type === "text" || activeNode.type === "link";
   const isGroup = activeNode.type === "group";
-  const hasFill = ["rectangle", "button", "input", "image", "component", "bottomnav", "group"].includes(
-    activeNode.type
-  );
+  const isComponentInstance = activeNode.type === "componentInstance";
+  const hasFill = [
+    "rectangle",
+    "button",
+    "input",
+    "image",
+    "component",
+    "componentInstance",
+    "bottomnav",
+    "group",
+  ].includes(activeNode.type);
 
   return (
     <aside
@@ -298,6 +349,51 @@ export default function RightPropertiesPanel({
           <Trash2 size={13} />
         </button>
       </div>
+
+      {/* Component Instance Section */}
+      {isComponentInstance && (
+        <Group title="Component Instance">
+          <div className="rounded border border-[#e4e4e7] bg-[#fafafa] p-2 text-xs text-[#71717a]">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-[#18181b]">Instance</span>
+              <span className="font-mono text-[10px] text-[#a1a1aa]">{activeNode.componentId}</span>
+            </div>
+            <p className="mt-1 text-[11px] text-[#71717a]">Overrides only affect this instance.</p>
+          </div>
+          <button
+            data-testid="detach-instance-btn"
+            onClick={() => onDetachInstance && onDetachInstance(activeNode.id)}
+            className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] transition-colors hover:bg-[#f4f4f5]"
+          >
+            <Unlink size={13} />
+            <span>Detach Instance</span>
+          </button>
+        </Group>
+      )}
+
+      {/* Style Presets Dropdown */}
+      <Group title="Style Presets">
+        <Field label="Preset">
+          <select
+            data-testid="style-preset-select"
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) {
+                handleApplyPreset(e.target.value, [activeNode]);
+                e.target.value = "";
+              }
+            }}
+            className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+          >
+            <option value="" disabled>Choose style preset...</option>
+            {Object.entries(STYLE_PRESETS).map(([key, pr]) => (
+              <option key={key} value={key}>
+                {pr.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </Group>
 
       {isGroup && (
         <Group title="Group Details">
@@ -382,6 +478,7 @@ export default function RightPropertiesPanel({
         </div>
       </Group>
 
+      {/* Text / Override Content */}
       {isText && (
         <Group title="Content">
           <Input
@@ -392,33 +489,162 @@ export default function RightPropertiesPanel({
         </Group>
       )}
 
+      {isComponentInstance && (
+        <Group title="Instance Overrides">
+          <Field label="Text">
+            <Input
+              data-testid="prop-override-text"
+              value={activeNode.overrides?.text ?? activeNode.text ?? ""}
+              onChange={(e) =>
+                updateNode(activeNode.id, {
+                  overrides: { ...(activeNode.overrides || {}), text: e.target.value },
+                })
+              }
+            />
+          </Field>
+        </Group>
+      )}
+
       <Group title="Appearance">
         {hasFill && (
-          <ColorField label="Fill" testid="prop-fill" value={s.fill} onChange={(v) => updateNode(activeNode.id, { style: { fill: v } })} />
+          <ColorField
+            label="Fill"
+            testid="prop-fill"
+            value={isComponentInstance ? (activeNode.overrides?.style?.fill ?? s.fill) : s.fill}
+            onChange={(v) => {
+              if (isComponentInstance) {
+                updateNode(activeNode.id, {
+                  overrides: {
+                    ...(activeNode.overrides || {}),
+                    style: { ...(activeNode.overrides?.style || {}), fill: v },
+                  },
+                });
+              } else {
+                updateNode(activeNode.id, { style: { fill: v } });
+              }
+            }}
+          />
         )}
         {(hasFill || activeNode.type !== "text") && (
-          <ColorField label="Stroke" testid="prop-stroke" value={s.stroke} onChange={(v) => updateNode(activeNode.id, { style: { stroke: v } })} />
+          <ColorField
+            label="Stroke"
+            testid="prop-stroke"
+            value={isComponentInstance ? (activeNode.overrides?.style?.stroke ?? s.stroke) : s.stroke}
+            onChange={(v) => {
+              if (isComponentInstance) {
+                updateNode(activeNode.id, {
+                  overrides: {
+                    ...(activeNode.overrides || {}),
+                    style: { ...(activeNode.overrides?.style || {}), stroke: v },
+                  },
+                });
+              } else {
+                updateNode(activeNode.id, { style: { stroke: v } });
+              }
+            }}
+          />
         )}
-        <NumberField label="Radius" testid="prop-radius" value={s.radius} onChange={(v) => updateNode(activeNode.id, { style: { radius: v } })} />
-        <NumberField label="Opacity" suffix="%" testid="prop-opacity" value={s.opacity} onChange={(v) => updateNode(activeNode.id, { style: { opacity: Math.max(0, Math.min(100, v)) } })} />
+        <NumberField
+          label="Radius"
+          testid="prop-radius"
+          value={isComponentInstance ? (activeNode.overrides?.style?.radius ?? s.radius) : s.radius}
+          onChange={(v) => {
+            if (isComponentInstance) {
+              updateNode(activeNode.id, {
+                overrides: {
+                  ...(activeNode.overrides || {}),
+                  style: { ...(activeNode.overrides?.style || {}), radius: v },
+                },
+              });
+            } else {
+              updateNode(activeNode.id, { style: { radius: v } });
+            }
+          }}
+        />
+        <NumberField
+          label="Opacity"
+          suffix="%"
+          testid="prop-opacity"
+          value={isComponentInstance ? (activeNode.overrides?.style?.opacity ?? s.opacity) : s.opacity}
+          onChange={(v) => {
+            const clamped = Math.max(0, Math.min(100, v ?? 100));
+            if (isComponentInstance) {
+              updateNode(activeNode.id, {
+                overrides: {
+                  ...(activeNode.overrides || {}),
+                  style: { ...(activeNode.overrides?.style || {}), opacity: clamped },
+                },
+              });
+            } else {
+              updateNode(activeNode.id, { style: { opacity: clamped } });
+            }
+          }}
+        />
       </Group>
 
-      {isText && (
+      {/* Typography Section (Text, Link, Button, or Component Instance) */}
+      {(isText || activeNode.type === "button" || isComponentInstance) && (
         <Group title="Typography">
-          <ColorField label="Color" testid="prop-color" value={s.color} onChange={(v) => updateNode(activeNode.id, { style: { color: v } })} />
-          <NumberField label="Size" testid="prop-fontsize" value={s.fontSize} onChange={(v) => updateNode(activeNode.id, { style: { fontSize: v } })} />
+          <ColorField
+            label="Color"
+            testid="prop-color"
+            value={s.color}
+            onChange={(v) => updateNode(activeNode.id, { style: { color: v } })}
+          />
+          <Field label="Font">
+            <select
+              data-testid="prop-fontfamily"
+              value={s.fontFamily || "Inter"}
+              onChange={(e) => updateNode(activeNode.id, { style: { fontFamily: e.target.value } })}
+              className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+            >
+              <option value="Inter">Inter</option>
+              <option value="Roboto">Roboto</option>
+              <option value="SF Pro, -apple-system, sans-serif">SF Pro / System</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="monospace">Monospace</option>
+            </select>
+          </Field>
+          <NumberField
+            label="Size"
+            testid="prop-fontsize"
+            value={s.fontSize}
+            onChange={(v) => updateNode(activeNode.id, { style: { fontSize: v } })}
+          />
           <Field label="Weight">
             <Segmented
               testid="prop-weight"
               value={String(s.fontWeight || 400)}
               onChange={(v) => updateNode(activeNode.id, { style: { fontWeight: Number(v) } })}
               options={[
+                { value: "300", label: "L" },
                 { value: "400", label: "R" },
                 { value: "500", label: "M" },
+                { value: "600", label: "SB" },
                 { value: "700", label: "B" },
               ]}
             />
           </Field>
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberField
+              label="Line H"
+              step={0.1}
+              testid="prop-lineheight"
+              placeholder="1.2"
+              value={s.lineHeight}
+              onChange={(v) => updateNode(activeNode.id, { style: { lineHeight: v } })}
+            />
+            <NumberField
+              label="Spacing"
+              step={0.5}
+              testid="prop-letterspacing"
+              placeholder="0"
+              suffix="px"
+              value={s.letterSpacing}
+              onChange={(v) => updateNode(activeNode.id, { style: { letterSpacing: v } })}
+            />
+          </div>
           <Field label="Align">
             <div className="inline-flex rounded-md border border-[#d4d4d8] bg-[#f4f4f5] p-0.5">
               {[
@@ -429,9 +655,9 @@ export default function RightPropertiesPanel({
                 <button
                   key={v}
                   data-testid={`prop-align-${v}`}
-                  onClick={() => updateNode(activeNode.id, { style: { align: v } })}
+                  onClick={() => updateNode(activeNode.id, { style: { align: v, textAlign: v } })}
                   className={`flex h-6 w-7 items-center justify-center rounded transition-colors ${
-                    (s.align || "left") === v
+                    (s.textAlign || s.align || "left") === v
                       ? "bg-white text-[#18181b]"
                       : "text-[#71717a] hover:text-[#18181b]"
                   }`}
@@ -441,6 +667,33 @@ export default function RightPropertiesPanel({
               ))}
             </div>
           </Field>
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            <Field label="Case">
+              <select
+                data-testid="prop-texttransform"
+                value={s.textTransform || "none"}
+                onChange={(e) => updateNode(activeNode.id, { style: { textTransform: e.target.value } })}
+                className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+              >
+                <option value="none">Default</option>
+                <option value="uppercase">UPPER</option>
+                <option value="lowercase">lower</option>
+                <option value="capitalize">Capital</option>
+              </select>
+            </Field>
+            <Field label="Deco">
+              <select
+                data-testid="prop-textdecoration"
+                value={s.textDecoration || "none"}
+                onChange={(e) => updateNode(activeNode.id, { style: { textDecoration: e.target.value } })}
+                className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+              >
+                <option value="none">None</option>
+                <option value="underline">Underline</option>
+                <option value="line-through">Strike</option>
+              </select>
+            </Field>
+          </div>
         </Group>
       )}
 
@@ -472,12 +725,12 @@ export default function RightPropertiesPanel({
               onChange={(e) => updateNode(activeNode.id, { prototype: { action: e.target.value } })}
               className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
             >
-              <option value="navigate">Navigate to</option>
-              <option value="back">Back</option>
-              <option value="overlay">Open Overlay</option>
+              <option value="navigate">Navigate</option>
+              <option value="modal">Open Modal</option>
+              <option value="back">Go Back</option>
             </select>
           </Field>
-          {((p.action || "navigate") === "navigate" || p.action === "overlay") && (
+          {p.action !== "back" && (
             <Field label="Target">
               <select
                 data-testid="proto-target"
@@ -485,63 +738,15 @@ export default function RightPropertiesPanel({
                 onChange={(e) => updateNode(activeNode.id, { prototype: { target: e.target.value } })}
                 className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
               >
-                <option value="">Select screen…</option>
+                <option value="">Select screen...</option>
                 {frames.map((f) => (
-                  <option key={f.id} value={f.id}>
+                  <option key={f.id} value={f.name}>
                     {f.name}
                   </option>
                 ))}
               </select>
             </Field>
           )}
-          {p.action === "overlay" && (
-            <>
-              <Field label="Type">
-                <select
-                  data-testid="proto-overlay-type"
-                  value={p.overlayType || "bottom-sheet"}
-                  onChange={(e) => updateNode(activeNode.id, { prototype: { overlayType: e.target.value } })}
-                  className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
-                >
-                  <option value="bottom-sheet">Bottom Sheet</option>
-                  <option value="centered-dialog">Centered Dialog</option>
-                </select>
-              </Field>
-              <Field label="Dismiss">
-                <label className="flex items-center gap-2 text-xs text-[#18181b]">
-                  <input
-                    data-testid="proto-overlay-dismiss"
-                    type="checkbox"
-                    checked={p.dismissOnOutsideClick !== false}
-                    onChange={(e) => updateNode(activeNode.id, { prototype: { dismissOnOutsideClick: e.target.checked } })}
-                    className="h-4 w-4 rounded border-[#d4d4d8] text-[#18181b]"
-                  />
-                  Outside click
-                </label>
-              </Field>
-            </>
-          )}
-          <Field label="Transition">
-            <select
-              data-testid="proto-transition"
-              value={p.transition || (p.action === "overlay" ? "slide-up" : "instant")}
-              onChange={(e) => updateNode(activeNode.id, { prototype: { transition: e.target.value } })}
-              className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
-            >
-              <option value="instant">Instant</option>
-              {p.action === "overlay" ? (
-                <>
-                  <option value="slide-up">Slide Up</option>
-                  <option value="fade">Fade</option>
-                </>
-              ) : (
-                <>
-                  <option value="slide">Slide</option>
-                  <option value="fade">Fade</option>
-                </>
-              )}
-            </select>
-          </Field>
         </div>
       </div>
     </aside>

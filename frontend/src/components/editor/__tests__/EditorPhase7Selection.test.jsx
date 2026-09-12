@@ -4,6 +4,7 @@ import KeyboardShortcutsModal from '../KeyboardShortcutsModal';
 import RightPropertiesPanel from '../RightPropertiesPanel';
 import LeftSidebar from '../LeftSidebar';
 import CanvasArea from '../CanvasArea';
+global.IS_REACT_ACT_ENVIRONMENT = true;
 
 describe('LOW Phase 7: Multi-Selection, Grouping, Alignment & Layer Workflow', () => {
   test('KeyboardShortcutsModal renders shortcuts and triggers onClose', async () => {

@@ -43,10 +43,10 @@ dist
 *.db-journal
 *.db-wal
 /data/
-/backend/data/
-storage/
+/backend/storage/
 backups/
 !frontend/src/data/
+!frontend/src/data/storage/
 
 
 # Logs and debug files
