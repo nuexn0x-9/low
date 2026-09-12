@@ -1,8 +1,18 @@
 import React from "react";
 
-function RenderLeafNode({ node }) {
+function RenderLeafNode({ node, onNodeClick, frames = [] }) {
   const s = node.style || {};
   const opacity = (s.opacity ?? 100) / 100;
+
+  const isClickable =
+    typeof onNodeClick === "function" &&
+    (node.prototype?.action === "back" ||
+      (node.prototype?.target &&
+        frames.some(
+          (f) =>
+            f.id === node.prototype.target ||
+            f.name.toLowerCase() === String(node.prototype.target).toLowerCase()
+        )));
 
   const base = {
     position: "absolute",
@@ -11,13 +21,22 @@ function RenderLeafNode({ node }) {
     width: node.width,
     height: node.height,
     opacity,
+    cursor: isClickable ? "pointer" : undefined,
   };
+
+  const clickHandler = isClickable
+    ? (e) => {
+        e.stopPropagation();
+        onNodeClick(node);
+      }
+    : undefined;
 
   // 1. Text or Link
   if (node.type === "text" || node.type === "link") {
     const textAlign = s.textAlign || s.align || "left";
     return (
       <div
+        onClick={clickHandler}
         style={{
           ...base,
           fontFamily: s.fontFamily || "inherit",
@@ -50,6 +69,7 @@ function RenderLeafNode({ node }) {
   if (node.type === "button" || node.type === "component") {
     return (
       <div
+        onClick={clickHandler}
         style={{
           ...base,
           background: s.fill,
@@ -76,6 +96,7 @@ function RenderLeafNode({ node }) {
   if (node.type === "input") {
     return (
       <div
+        onClick={clickHandler}
         style={{
           ...base,
           background: s.fill,
@@ -100,6 +121,7 @@ function RenderLeafNode({ node }) {
   if (node.type === "image") {
     return (
       <div
+        onClick={clickHandler}
         style={{
           ...base,
           background: s.fill,
@@ -124,6 +146,7 @@ function RenderLeafNode({ node }) {
   if (node.type === "bottomnav") {
     return (
       <div
+        onClick={clickHandler}
         style={{
           ...base,
           background: s.fill,
@@ -147,6 +170,7 @@ function RenderLeafNode({ node }) {
   // 6. Rectangle default
   return (
     <div
+      onClick={clickHandler}
       style={{
         ...base,
         background: s.fill,
@@ -157,8 +181,25 @@ function RenderLeafNode({ node }) {
   );
 }
 
-export default function NodeView({ node, components = [], allNodes = [] }) {
+export default function NodeView({ node, components = [], allNodes = [], onNodeClick, frames = [] }) {
   if (!node) return null;
+
+  const isContainerClickable =
+    typeof onNodeClick === "function" &&
+    (node.prototype?.action === "back" ||
+      (node.prototype?.target &&
+        frames.some(
+          (f) =>
+            f.id === node.prototype.target ||
+            f.name.toLowerCase() === String(node.prototype.target).toLowerCase()
+        )));
+
+  const containerClickHandler = isContainerClickable
+    ? (e) => {
+        e.stopPropagation();
+        onNodeClick(node);
+      }
+    : undefined;
 
   // Auto Layout Container
   if (node.type === "autoLayout") {
@@ -191,6 +232,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
     return (
       <div
         data-testid={`autolayout-container-${node.id}`}
+        onClick={containerClickHandler}
         style={{
           position: "absolute",
           left: node.x,
@@ -209,6 +251,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
           borderRadius: s.radius ?? 8,
           boxSizing: "border-box",
           overflow: "hidden",
+          cursor: isContainerClickable ? "pointer" : undefined,
         }}
       >
         {childrenNodes.map((child) => {
@@ -247,6 +290,8 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
                 node: { ...child, x: 0, y: 0 },
                 components,
                 allNodes,
+                onNodeClick,
+                frames,
               })}
             </div>
           );
@@ -266,6 +311,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
     return (
       <div
         data-testid={`scrollarea-container-${node.id}`}
+        onClick={containerClickHandler}
         style={{
           position: "absolute",
           left: node.x,
@@ -278,6 +324,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
           border: s.strokeWidth ? `${s.strokeWidth}px solid ${s.stroke}` : "1px dashed #a1a1aa",
           borderRadius: s.radius ?? 8,
           boxSizing: "border-box",
+          cursor: isContainerClickable ? "pointer" : undefined,
         }}
       >
         <div
@@ -302,6 +349,8 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
                 node: { ...child, x: 0, y: 0 },
                 components,
                 allNodes,
+                onNodeClick,
+                frames,
               })}
             </div>
           ))}
@@ -330,6 +379,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
       width: node.width,
       height: node.height,
       opacity: effOpacity,
+      cursor: isContainerClickable ? "pointer" : undefined,
     };
 
     // Check if matching component definition has child nodes to render
@@ -337,6 +387,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
     if (compDef && Array.isArray(compDef.nodes) && compDef.nodes.length > 0) {
       return (
         <div
+          onClick={containerClickHandler}
           style={{
             ...base,
             overflow: "hidden",
@@ -371,6 +422,8 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
                     x: 0,
                     y: 0,
                   }}
+                  onNodeClick={onNodeClick}
+                  frames={frames}
                 />
               </div>
             );
@@ -381,6 +434,7 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
 
     return (
       <div
+        onClick={containerClickHandler}
         style={{
           ...base,
           background: effStyle.fill || "#fafafa",
@@ -407,5 +461,5 @@ export default function NodeView({ node, components = [], allNodes = [] }) {
     );
   }
 
-  return <RenderLeafNode node={node} />;
+  return <RenderLeafNode node={node} onNodeClick={onNodeClick} frames={frames} />;
 }

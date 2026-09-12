@@ -1592,6 +1592,7 @@ export default function EditorShell() {
           frames={frames}
           startFrameId={activeFrameId}
           onClose={() => setPreviewOpen(false)}
+          components={components}
         />
       )}
 

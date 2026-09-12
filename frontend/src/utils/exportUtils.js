@@ -361,6 +361,8 @@ export function generateFrameSvg(frame, options = {}) {
       <!-- Safe Area Guides -->
       ${sa.top ? `<rect x="0" y="0" width="${w}" height="${sa.top}" fill="rgba(24,24,27,0.04)" stroke="#71717a" stroke-dasharray="4 4" stroke-width="1" />` : ""}
       ${sa.bottom ? `<rect x="0" y="${h - sa.bottom}" width="${w}" height="${sa.bottom}" fill="rgba(24,24,27,0.04)" stroke="#71717a" stroke-dasharray="4 4" stroke-width="1" />` : ""}
+      ${sa.left ? `<rect x="0" y="0" width="${sa.left}" height="${h}" fill="rgba(24,24,27,0.04)" stroke="#71717a" stroke-dasharray="4 4" stroke-width="1" />` : ""}
+      ${sa.right ? `<rect x="${w - sa.right}" y="0" width="${sa.right}" height="${h}" fill="rgba(24,24,27,0.04)" stroke="#71717a" stroke-dasharray="4 4" stroke-width="1" />` : ""}
     `;
   }
 

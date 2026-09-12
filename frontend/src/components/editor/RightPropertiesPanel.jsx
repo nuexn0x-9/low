@@ -1511,12 +1511,12 @@ export default function RightPropertiesPanel({
           <Field label="Action">
             <select
               data-testid="proto-action"
-              value={p.action || "navigate"}
+              value={p.action === "overlay" ? "modal" : p.action || "navigate"}
               onChange={(e) => updateNode(activeNode.id, { prototype: { action: e.target.value } })}
               className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
             >
               <option value="navigate">Navigate</option>
-              <option value="modal">Open Modal</option>
+              <option value="modal">Open Modal / Overlay</option>
               <option value="back">Go Back</option>
             </select>
           </Field>
@@ -1524,7 +1524,7 @@ export default function RightPropertiesPanel({
             <Field label="Target">
               <select
                 data-testid="proto-target"
-                value={p.target || ""}
+                value={frames.find((f) => f.id === p.target || f.name === p.target)?.name || p.target || ""}
                 onChange={(e) => updateNode(activeNode.id, { prototype: { target: e.target.value } })}
                 className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
               >
@@ -1534,6 +1534,33 @@ export default function RightPropertiesPanel({
                     {f.name}
                   </option>
                 ))}
+              </select>
+            </Field>
+          )}
+          {p.action === "navigate" && (
+            <Field label="Transition">
+              <select
+                data-testid="proto-transition"
+                value={p.transition || "instant"}
+                onChange={(e) => updateNode(activeNode.id, { prototype: { transition: e.target.value } })}
+                className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+              >
+                <option value="instant">Instant</option>
+                <option value="slide">Slide</option>
+                <option value="fade">Fade</option>
+              </select>
+            </Field>
+          )}
+          {(p.action === "modal" || p.action === "overlay") && (
+            <Field label="Overlay Type">
+              <select
+                data-testid="proto-overlay-type"
+                value={p.overlayType || "bottom-sheet"}
+                onChange={(e) => updateNode(activeNode.id, { prototype: { overlayType: e.target.value } })}
+                className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
+              >
+                <option value="bottom-sheet">Bottom Sheet</option>
+                <option value="centered-dialog">Centered Dialog</option>
               </select>
             </Field>
           )}
