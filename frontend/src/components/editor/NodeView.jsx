@@ -157,8 +157,158 @@ function RenderLeafNode({ node }) {
   );
 }
 
-export default function NodeView({ node, components = [] }) {
+export default function NodeView({ node, components = [], allNodes = [] }) {
   if (!node) return null;
+
+  // Auto Layout Container
+  if (node.type === "autoLayout") {
+    const layout = node.layout || {};
+    const direction = layout.direction === "horizontal" ? "row" : "column";
+    const gap = layout.gap !== undefined ? layout.gap : 12;
+    const padding = layout.padding || { top: 16, right: 16, bottom: 16, left: 16 };
+    const padTop = typeof padding === "number" ? padding : padding.top || 0;
+    const padRight = typeof padding === "number" ? padding : padding.right || 0;
+    const padBottom = typeof padding === "number" ? padding : padding.bottom || 0;
+    const padLeft = typeof padding === "number" ? padding : padding.left || 0;
+
+    const alignMap = {
+      start: "flex-start",
+      center: "center",
+      end: "flex-end",
+      stretch: "stretch",
+    };
+    const justifyMap = {
+      start: "flex-start",
+      center: "center",
+      end: "flex-end",
+      "space-between": "space-between",
+    };
+
+    const s = node.style || {};
+    const childIds = Array.isArray(node.children) ? node.children : [];
+    const childrenNodes = childIds.map((cid) => allNodes.find((n) => n.id === cid)).filter(Boolean);
+
+    return (
+      <div
+        data-testid={`autolayout-container-${node.id}`}
+        style={{
+          position: "absolute",
+          left: node.x,
+          top: node.y,
+          width: node.width,
+          height: node.height,
+          display: "flex",
+          flexDirection: direction,
+          gap: `${gap}px`,
+          padding: `${padTop}px ${padRight}px ${padBottom}px ${padLeft}px`,
+          alignItems: alignMap[layout.align] || "stretch",
+          justifyContent: justifyMap[layout.justify] || "flex-start",
+          flexWrap: layout.wrap ? "wrap" : "nowrap",
+          background: s.fill || "transparent",
+          border: s.strokeWidth ? `${s.strokeWidth}px solid ${s.stroke}` : "1px dashed #d4d4d8",
+          borderRadius: s.radius ?? 8,
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        {childrenNodes.map((child) => {
+          const wSizing = child.layoutSizing?.width || "fixed";
+          const hSizing = child.layoutSizing?.height || "fixed";
+
+          let childW = child.width;
+          let flexGrow = 0;
+          if (wSizing === "fill") {
+            childW = "auto";
+            flexGrow = 1;
+          } else if (wSizing === "hug") {
+            childW = "fit-content";
+          }
+
+          let childH = child.height;
+          if (hSizing === "fill") {
+            childH = "auto";
+            flexGrow = 1;
+          } else if (hSizing === "hug") {
+            childH = "fit-content";
+          }
+
+          return (
+            <div
+              key={child.id}
+              style={{
+                position: "relative",
+                width: childW,
+                height: childH,
+                flexGrow,
+                flexShrink: 0,
+              }}
+            >
+              {React.createElement(NodeView, {
+                node: { ...child, x: 0, y: 0 },
+                components,
+                allNodes,
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Scroll Area Container
+  if (node.type === "scrollArea") {
+    const scroll = node.scroll || {};
+    const dir = scroll.direction || "vertical";
+    const s = node.style || {};
+    const childIds = Array.isArray(node.children) ? node.children : [];
+    const childrenNodes = childIds.map((cid) => allNodes.find((n) => n.id === cid)).filter(Boolean);
+
+    return (
+      <div
+        data-testid={`scrollarea-container-${node.id}`}
+        style={{
+          position: "absolute",
+          left: node.x,
+          top: node.y,
+          width: node.width,
+          height: node.height,
+          overflowY: dir === "horizontal" ? "hidden" : "auto",
+          overflowX: dir === "vertical" ? "hidden" : "auto",
+          background: s.fill || "transparent",
+          border: s.strokeWidth ? `${s.strokeWidth}px solid ${s.stroke}` : "1px dashed #a1a1aa",
+          borderRadius: s.radius ?? 8,
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            minHeight: scroll.contentHeight || node.height,
+            minWidth: scroll.contentWidth || node.width,
+          }}
+        >
+          {childrenNodes.map((child) => (
+            <div
+              key={child.id}
+              style={{
+                position: "absolute",
+                left: child.x - node.x,
+                top: child.y - node.y,
+                width: child.width,
+                height: child.height,
+              }}
+            >
+              {React.createElement(NodeView, {
+                node: { ...child, x: 0, y: 0 },
+                components,
+                allNodes,
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   // Component Instance
   if (node.type === "componentInstance") {

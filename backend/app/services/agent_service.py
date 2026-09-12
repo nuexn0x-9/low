@@ -92,6 +92,15 @@ ACTION_SCOPES = {
     "update_design_tokens": ["write_document"],
     "apply_style_preset": ["edit_screen", "write_document"],
     "update_text_content": ["edit_screen", "write_document"],
+    "create_auto_layout_from_selection": ["edit_screen", "write_document"],
+    "update_auto_layout": ["edit_screen", "write_document"],
+    "insert_into_auto_layout": ["edit_screen", "write_document"],
+    "remove_from_auto_layout": ["edit_screen", "write_document"],
+    "reorder_auto_layout_child": ["edit_screen", "write_document"],
+    "update_constraints": ["edit_screen", "write_document"],
+    "update_frame_preset": ["edit_screen", "write_document"],
+    "update_safe_area": ["edit_screen", "write_document"],
+    "create_scroll_area": ["edit_screen", "write_document"],
 }
 
 
@@ -789,12 +798,324 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         node["text"] = text
         return {"ok": True, "nodeId": node_id, "text": text}, doc
 
+    if action == "create_auto_layout_from_selection":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        direction = str(params.get("direction", "vertical")).lower()
+        if direction not in ("vertical", "horizontal"):
+            direction = "vertical"
+        gap = max(0.0, float(params.get("gap", 12)))
+        raw_pad = params.get("padding", 16)
+        if isinstance(raw_pad, (int, float)):
+            padding = {"top": float(raw_pad), "right": float(raw_pad), "bottom": float(raw_pad), "left": float(raw_pad)}
+        elif isinstance(raw_pad, dict):
+            padding = {
+                "top": max(0.0, float(raw_pad.get("top", 16))),
+                "right": max(0.0, float(raw_pad.get("right", 16))),
+                "bottom": max(0.0, float(raw_pad.get("bottom", 16))),
+                "left": max(0.0, float(raw_pad.get("left", 16))),
+            }
+        else:
+            padding = {"top": 16.0, "right": 16.0, "bottom": 16.0, "left": 16.0}
+        align = str(params.get("align", "stretch")).lower()
+        justify = str(params.get("justify", "start")).lower()
+        wrap = bool(params.get("wrap", False))
+
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        nodes = target_frame.get("nodes", [])
+        matched = [n for n in nodes if n.get("id") in node_ids]
+        if not matched:
+            raise ValueError("No matching nodes found for auto layout")
+
+        min_x = min(n.get("x", 0) for n in matched)
+        min_y = min(n.get("y", 0) for n in matched)
+        max_r = max(n.get("x", 0) + n.get("width", 100) for n in matched)
+        max_b = max(n.get("y", 0) + n.get("height", 40) for n in matched)
+
+        auto_id = _new_id("auto")
+        auto_node = {
+            "id": auto_id,
+            "type": "autoLayout",
+            "name": params.get("name") or "Auto Layout",
+            "x": round(min_x),
+            "y": round(min_y),
+            "width": round(max_r - min_x),
+            "height": round(max_b - min_y),
+            "layout": {
+                "direction": direction,
+                "gap": gap,
+                "padding": padding,
+                "align": align if align in ("start", "center", "end", "stretch") else "stretch",
+                "justify": justify if justify in ("start", "center", "end", "space-between") else "start",
+                "wrap": wrap,
+            },
+            "children": [n.get("id") for n in matched],
+            "style": {"fill": "transparent", "stroke": "transparent"},
+        }
+        for n in matched:
+            n["parentId"] = auto_id
+            if "layoutSizing" not in n:
+                n["layoutSizing"] = {"width": "fixed", "height": "fixed"}
+
+        target_frame["nodes"].append(auto_node)
+        return {"ok": True, "autoLayoutId": auto_id, "children": auto_node["children"]}, doc
+
+    if action == "update_auto_layout":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        layout_patch = params.get("layout", {})
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id and n.get("type") == "autoLayout"), None)
+        if not node:
+            raise ValueError(f"autoLayout node '{node_id}' not found")
+        curr_layout = node.setdefault("layout", {})
+        if "direction" in layout_patch and layout_patch["direction"] in ("vertical", "horizontal"):
+            curr_layout["direction"] = layout_patch["direction"]
+        if "gap" in layout_patch:
+            curr_layout["gap"] = max(0.0, float(layout_patch["gap"]))
+        if "padding" in layout_patch:
+            raw_p = layout_patch["padding"]
+            if isinstance(raw_p, (int, float)):
+                curr_layout["padding"] = {"top": float(raw_p), "right": float(raw_p), "bottom": float(raw_p), "left": float(raw_p)}
+            elif isinstance(raw_p, dict):
+                curr_layout.setdefault("padding", {})
+                for s in ("top", "right", "bottom", "left"):
+                    if s in raw_p:
+                        curr_layout["padding"][s] = max(0.0, float(raw_p[s]))
+        if "align" in layout_patch and layout_patch["align"] in ("start", "center", "end", "stretch"):
+            curr_layout["align"] = layout_patch["align"]
+        if "justify" in layout_patch and layout_patch["justify"] in ("start", "center", "end", "space-between"):
+            curr_layout["justify"] = layout_patch["justify"]
+        if "wrap" in layout_patch:
+            curr_layout["wrap"] = bool(layout_patch["wrap"])
+        return {"ok": True, "nodeId": node_id, "layout": curr_layout}, doc
+
+    if action == "insert_into_auto_layout":
+        screen_id = params.get("screenId")
+        container_id = params.get("containerId")
+        node_id = params.get("nodeId")
+        index = params.get("index")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        container = next((n for n in target_frame.get("nodes", []) if n.get("id") == container_id and n.get("type") in ("autoLayout", "scrollArea")), None)
+        if not container:
+            raise ValueError(f"container '{container_id}' not found")
+        child = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not child:
+            raise ValueError(f"node '{node_id}' not found")
+        children = container.setdefault("children", [])
+        if node_id in children:
+            children.remove(node_id)
+        if index is not None and 0 <= index <= len(children):
+            children.insert(index, node_id)
+        else:
+            children.append(node_id)
+        child["parentId"] = container_id
+        return {"ok": True, "containerId": container_id, "children": children}, doc
+
+    if action == "remove_from_auto_layout":
+        screen_id = params.get("screenId")
+        container_id = params.get("containerId")
+        node_id = params.get("nodeId")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        container = next((n for n in target_frame.get("nodes", []) if n.get("id") == container_id), None)
+        if not container:
+            raise ValueError(f"container '{container_id}' not found")
+        children = container.get("children", [])
+        if node_id in children:
+            children.remove(node_id)
+        child = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if child and child.get("parentId") == container_id:
+            child["parentId"] = None
+        return {"ok": True, "containerId": container_id, "removedNodeId": node_id}, doc
+
+    if action == "reorder_auto_layout_child":
+        screen_id = params.get("screenId")
+        container_id = params.get("containerId")
+        node_id = params.get("nodeId")
+        new_index = int(params.get("newIndex", 0))
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        container = next((n for n in target_frame.get("nodes", []) if n.get("id") == container_id), None)
+        if not container:
+            raise ValueError(f"container '{container_id}' not found")
+        children = container.get("children", [])
+        if node_id not in children:
+            raise ValueError(f"node '{node_id}' is not a child of container '{container_id}'")
+        children.remove(node_id)
+        new_index = max(0, min(new_index, len(children)))
+        children.insert(new_index, node_id)
+        return {"ok": True, "containerId": container_id, "children": children}, doc
+
+    if action == "update_constraints":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        constraints = params.get("constraints", {})
+        layout_sizing = params.get("layoutSizing")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found")
+        if constraints:
+            node.setdefault("constraints", {})
+            h = constraints.get("horizontal")
+            v = constraints.get("vertical")
+            if h in ("left", "right", "left-right", "center", "scale"):
+                node["constraints"]["horizontal"] = h
+            if v in ("top", "bottom", "top-bottom", "center", "scale"):
+                node["constraints"]["vertical"] = v
+        if layout_sizing and isinstance(layout_sizing, dict):
+            node.setdefault("layoutSizing", {})
+            w_s = layout_sizing.get("width")
+            h_s = layout_sizing.get("height")
+            if w_s in ("fixed", "fill", "hug"):
+                node["layoutSizing"]["width"] = w_s
+            if h_s in ("fixed", "fill", "hug"):
+                node["layoutSizing"]["height"] = h_s
+        return {"ok": True, "nodeId": node_id, "constraints": node.get("constraints"), "layoutSizing": node.get("layoutSizing")}, doc
+
+    if action == "update_frame_preset":
+        screen_id = params.get("screenId")
+        preset = str(params.get("preset", "iPhone 15"))
+        apply_constraints = bool(params.get("applyConstraints", True))
+        FRAME_PRESETS = {
+            "iPhone 15": (390, 844),
+            "iPhone SE": (375, 667),
+            "Android Compact": (360, 800),
+            "Android Large": (412, 915),
+            "Custom Size": (params.get("width", 390), params.get("height", 844)),
+        }
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+
+        old_w = float(target_frame.get("width", 390))
+        old_h = float(target_frame.get("height", 844))
+
+        if preset in FRAME_PRESETS and preset != "Custom Size":
+            new_w, new_h = FRAME_PRESETS[preset]
+        else:
+            new_w = float(params.get("width", old_w))
+            new_h = float(params.get("height", old_h))
+
+        target_frame["preset"] = preset
+        target_frame["width"] = round(new_w)
+        target_frame["height"] = round(new_h)
+
+        if apply_constraints and (old_w != new_w or old_h != new_h):
+            for n in target_frame.get("nodes", []):
+                # Only apply to top-level elements
+                if n.get("parentId"):
+                    continue
+                c = n.get("constraints", {})
+                h_c = c.get("horizontal", "left")
+                v_c = c.get("vertical", "top")
+                x, y = float(n.get("x", 0)), float(n.get("y", 0))
+                w, h = float(n.get("width", 100)), float(n.get("height", 40))
+
+                # Horizontal
+                if h_c == "right":
+                    right_dist = old_w - (x + w)
+                    n["x"] = round(new_w - right_dist - w)
+                elif h_c == "left-right":
+                    right_dist = old_w - (x + w)
+                    n["width"] = round(max(10, new_w - right_dist - x))
+                elif h_c == "center":
+                    center_old = x + w / 2.0
+                    ratio = center_old / old_w if old_w else 0.5
+                    center_new = ratio * new_w
+                    n["x"] = round(center_new - w / 2.0)
+                elif h_c == "scale":
+                    n["x"] = round((x / old_w) * new_w) if old_w else x
+                    n["width"] = round(max(10, (w / old_w) * new_w)) if old_w else w
+
+                # Vertical
+                if v_c == "bottom":
+                    bottom_dist = old_h - (y + h)
+                    n["y"] = round(new_h - bottom_dist - h)
+                elif v_c == "top-bottom":
+                    bottom_dist = old_h - (y + h)
+                    n["height"] = round(max(10, new_h - bottom_dist - y))
+                elif v_c == "center":
+                    center_old = y + h / 2.0
+                    ratio = center_old / old_h if old_h else 0.5
+                    center_new = ratio * new_h
+                    n["y"] = round(center_new - h / 2.0)
+                elif v_c == "scale":
+                    n["y"] = round((y / old_h) * new_h) if old_h else y
+                    n["height"] = round(max(10, (h / old_h) * new_h)) if old_h else h
+
+        return {"ok": True, "screenId": screen_id, "preset": preset, "width": target_frame["width"], "height": target_frame["height"]}, doc
+
+    if action == "update_safe_area":
+        screen_id = params.get("screenId")
+        sa_patch = params.get("safeArea", {})
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        curr_sa = target_frame.setdefault("safeArea", {"top": 44, "bottom": 34, "left": 0, "right": 0, "visible": True})
+        for side in ("top", "bottom", "left", "right"):
+            if side in sa_patch:
+                curr_sa[side] = max(0.0, float(sa_patch[side]))
+        if "visible" in sa_patch:
+            curr_sa["visible"] = bool(sa_patch["visible"])
+        return {"ok": True, "screenId": screen_id, "safeArea": curr_sa}, doc
+
+    if action == "create_scroll_area":
+        screen_id = params.get("screenId")
+        node_ids = params.get("nodeIds", [])
+        direction = str(params.get("direction", "vertical")).lower()
+        if direction not in ("vertical", "horizontal", "both"):
+            direction = "vertical"
+        content_height = max(0.0, float(params.get("contentHeight", 1000)))
+        content_width = max(0.0, float(params.get("contentWidth", 390)))
+        x = float(params.get("x", 0))
+        y = float(params.get("y", 60))
+        w = float(params.get("width", 390))
+        h = float(params.get("height", 650))
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        scroll_id = _new_id("scroll")
+        matched = [n for n in target_frame.get("nodes", []) if n.get("id") in node_ids]
+        for n in matched:
+            n["parentId"] = scroll_id
+        scroll_node = {
+            "id": scroll_id,
+            "type": "scrollArea",
+            "name": params.get("name") or "Scroll Area",
+            "x": round(x),
+            "y": round(y),
+            "width": round(w),
+            "height": round(h),
+            "scroll": {
+                "direction": direction,
+                "contentHeight": round(content_height),
+                "contentWidth": round(content_width),
+                "showIndicator": bool(params.get("showIndicator", True)),
+            },
+            "children": [n.get("id") for n in matched],
+            "style": {"fill": "transparent", "stroke": "transparent"},
+        }
+        target_frame["nodes"].append(scroll_node)
+        return {"ok": True, "scrollAreaId": scroll_id, "children": scroll_node["children"]}, doc
+
     raise ValueError(f"unknown action: {action}")
 
 
 AGENT_SCHEMA = {
     "name": "LOW Universal Agent Connect API",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "Read and safely modify a LOW mobile UI/UX design. All mutations are atomic, scoped, and leave an audit log.",
     "auth": {"type": "header", "header": "X-LOW-Token", "note": "Token returned once when session is created. Required for POST /actions."},
     "scopes": ALL_SCOPES,
@@ -829,6 +1150,15 @@ AGENT_SCHEMA = {
         {"action": "update_design_tokens", "scope": "write_document", "params": {"tokens": "object with colors, radius, spacing"}},
         {"action": "apply_style_preset", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "preset": "primary_button|secondary_button|input_field|card|heading|body_text|label|app_bar|bottom_navigation|bottom_sheet|dialog"}},
         {"action": "update_text_content", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "text": "string"}},
+        {"action": "create_auto_layout_from_selection", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "array of strings", "direction": "vertical|horizontal", "gap": "optional number", "padding": "optional object or number", "align": "optional start|center|end|stretch", "justify": "optional start|center|end|space-between", "wrap": "optional boolean"}},
+        {"action": "update_auto_layout", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "layout": "object"}},
+        {"action": "insert_into_auto_layout", "scope": "edit_screen", "params": {"screenId": "string", "containerId": "string", "nodeId": "string", "index": "optional number"}},
+        {"action": "remove_from_auto_layout", "scope": "edit_screen", "params": {"screenId": "string", "containerId": "string", "nodeId": "string"}},
+        {"action": "reorder_auto_layout_child", "scope": "edit_screen", "params": {"screenId": "string", "containerId": "string", "nodeId": "string", "newIndex": "number"}},
+        {"action": "update_constraints", "scope": "edit_screen", "params": {"screenId": "string", "nodeId": "string", "constraints": "optional object", "layoutSizing": "optional object"}},
+        {"action": "update_frame_preset", "scope": "edit_screen", "params": {"screenId": "string", "preset": "string", "width": "optional number", "height": "optional number", "applyConstraints": "optional boolean"}},
+        {"action": "update_safe_area", "scope": "edit_screen", "params": {"screenId": "string", "safeArea": "object"}},
+        {"action": "create_scroll_area", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "optional array", "direction": "vertical|horizontal|both", "contentHeight": "optional number", "contentWidth": "optional number", "x": "optional number", "y": "optional number", "width": "optional number", "height": "optional number"}},
         {"action": "link_prototype", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "target": "screenId", "trigger": "tap", "action": "navigate", "transition": "slide"}},
         {"action": "create_component", "scope": "manage_components", "params": {"name": "string", "node": "object", "category": "optional string"}},
         {"action": "update_component", "scope": "manage_components", "params": {"componentId": "string", "patch": "object"}},

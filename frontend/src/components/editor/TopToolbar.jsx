@@ -6,6 +6,7 @@ import {
   Type,
   Image as ImageIcon,
   Component,
+  Layers,
   Play,
   ChevronLeft,
   Undo2,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import { Segmented } from "@/components/primitives/Input";
 import Button from "@/components/primitives/Button";
+import { FRAME_PRESETS } from "@/data/storage";
 
 const tools = [
   { id: "select", label: "Select", icon: MousePointer2 },
@@ -22,6 +24,7 @@ const tools = [
   { id: "text", label: "Text", icon: Type },
   { id: "image", label: "Image", icon: ImageIcon },
   { id: "component", label: "Component", icon: Component },
+  { id: "autoLayout", label: "Auto Layout", icon: Layers },
 ];
 
 const ToolButton = ({ tool, active, onClick }) => {
@@ -56,6 +59,9 @@ export default function TopToolbar({
   canUndo,
   canRedo,
   onOpenShortcuts,
+  activeFrame,
+  onChangeFramePreset,
+  onToggleSafeArea,
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#e4e4e7] bg-white px-3">
@@ -109,6 +115,37 @@ export default function TopToolbar({
       </div>
 
       <div className="flex items-center gap-2">
+        {activeFrame && onChangeFramePreset && (
+          <div className="flex items-center gap-1.5">
+            <select
+              data-testid="toolbar-frame-preset-select"
+              value={activeFrame.preset || "iPhone 15"}
+              onChange={(e) => onChangeFramePreset(activeFrame.id, e.target.value)}
+              className="h-7 rounded border border-[#d4d4d8] bg-white px-2 text-xs font-medium text-[#18181b] outline-none hover:border-[#18181b] focus:border-[#18181b]"
+            >
+              {Object.keys(FRAME_PRESETS).map((pKey) => (
+                <option key={pKey} value={pKey}>
+                  {pKey}
+                </option>
+              ))}
+            </select>
+            {onToggleSafeArea && (
+              <button
+                type="button"
+                data-testid="toolbar-safe-area-toggle"
+                title="Toggle Safe Area Overlay"
+                onClick={onToggleSafeArea}
+                className={`flex h-7 items-center rounded border px-2 text-xs font-medium transition-colors ${
+                  activeFrame.safeArea?.visible !== false
+                    ? "border-[#2563eb] bg-[#2563eb]/10 text-[#2563eb]"
+                    : "border-[#d4d4d8] bg-white text-[#71717a] hover:bg-[#f4f4f5]"
+                }`}
+              >
+                Safe Area
+              </button>
+            )}
+          </div>
+        )}
         {onOpenShortcuts && (
           <button
             data-testid="shortcuts-btn"

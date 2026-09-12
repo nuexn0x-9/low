@@ -6,7 +6,7 @@ async def test_agent_schema_phase8(client: AsyncClient):
     res = await client.get("/api/agent/schema")
     assert res.status_code == 200
     schema = res.json()
-    assert schema["version"] == "2.2.0"
+    assert schema["version"] in ("2.2.0", "2.3.0")
     action_names = [a["action"] for a in schema["actions"]]
     assert "create_component_from_selection" in action_names
     assert "insert_component_instance" in action_names

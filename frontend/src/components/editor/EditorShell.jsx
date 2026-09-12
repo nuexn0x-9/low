@@ -15,6 +15,8 @@ import {
   setCurrentRevision,
   DEFAULT_DESIGN_TOKENS,
   STYLE_PRESETS,
+  FRAME_PRESETS,
+  getFramePreset,
 } from "@/data/storage";
 import {
   createAgentSession,
@@ -70,6 +72,36 @@ const nodeTemplates = {
     height: 56,
     text: "Component",
     style: { fill: "#ffffff", stroke: "#18181b", strokeWidth: 1, radius: 8, color: "#18181b", fontSize: 13, fontWeight: 600, align: "center", opacity: 100 },
+  },
+  autoLayout: {
+    type: "autoLayout",
+    name: "Auto Layout",
+    width: 342,
+    height: 180,
+    layout: {
+      direction: "vertical",
+      gap: 12,
+      padding: { top: 16, right: 16, bottom: 16, left: 16 },
+      align: "stretch",
+      justify: "start",
+      wrap: false,
+    },
+    children: [],
+    style: { fill: "transparent", stroke: "transparent" },
+  },
+  scrollArea: {
+    type: "scrollArea",
+    name: "Scroll Area",
+    width: 342,
+    height: 300,
+    scroll: {
+      direction: "vertical",
+      contentHeight: 800,
+      contentWidth: 342,
+      showIndicator: true,
+    },
+    children: [],
+    style: { fill: "transparent", stroke: "transparent" },
   },
 };
 
@@ -265,7 +297,16 @@ export default function EditorShell() {
   const addNode = (kind) => {
     const tpl = nodeTemplates[kind];
     if (!tpl) return;
-    const node = { ...tpl, id: uid(kind), x: Math.round(195 - tpl.width / 2), y: 360, style: { ...tpl.style } };
+    const node = {
+      ...tpl,
+      id: uid(kind),
+      x: Math.round(195 - tpl.width / 2),
+      y: 360,
+      style: { ...tpl.style },
+      layout: tpl.layout ? JSON.parse(JSON.stringify(tpl.layout)) : undefined,
+      scroll: tpl.scroll ? JSON.parse(JSON.stringify(tpl.scroll)) : undefined,
+      children: tpl.children ? [...tpl.children] : undefined,
+    };
     commit(mapActive((nodes) => [...nodes, node]));
     setSelectedIds([node.id]);
     setActiveTool("select");
@@ -284,8 +325,16 @@ export default function EditorShell() {
   };
 
   const handleToolClick = (tool) => {
-    if (["rectangle", "text", "image", "component"].includes(tool)) {
+    if (["rectangle", "text", "image", "component", "scrollArea"].includes(tool)) {
       addNode(tool);
+      return;
+    }
+    if (tool === "autoLayout") {
+      if (selectedIds.length > 0) {
+        createAutoLayoutFromSelection();
+      } else {
+        addNode("autoLayout");
+      }
       return;
     }
     setActiveTool(tool);
@@ -343,6 +392,192 @@ export default function EditorShell() {
     setSelectedIds([]);
   };
 
+  const changeFramePreset = (fid, presetKey) => {
+    const preset = getFramePreset(presetKey);
+    if (!preset) return;
+    commit((fr) =>
+      fr.map((f) => {
+        if (f.id !== fid) return f;
+        const oldW = f.width || 390;
+        const oldH = f.height || 844;
+        const newW = preset.width;
+        const newH = preset.height;
+        const dw = newW - oldW;
+        const dh = newH - oldH;
+
+        const updatedNodes = (f.nodes || []).map((node) => {
+          if (node.parentId) return node;
+          const hConstraint = node.constraints?.horizontal || "left";
+          const vConstraint = node.constraints?.vertical || "top";
+
+          let newX = node.x;
+          let newY = node.y;
+          let newWidth = node.width;
+          let newHeight = node.height;
+
+          if (hConstraint === "right") {
+            newX = node.x + dw;
+          } else if (hConstraint === "left-right") {
+            newWidth = Math.max(20, node.width + dw);
+          } else if (hConstraint === "center") {
+            newX = Math.round(node.x + dw / 2);
+          } else if (hConstraint === "scale") {
+            const scaleX = newW / oldW;
+            newX = Math.round(node.x * scaleX);
+            newWidth = Math.max(10, Math.round(node.width * scaleX));
+          }
+
+          if (vConstraint === "bottom") {
+            newY = node.y + dh;
+          } else if (vConstraint === "top-bottom") {
+            newHeight = Math.max(20, node.height + dh);
+          } else if (vConstraint === "center") {
+            newY = Math.round(node.y + dh / 2);
+          } else if (vConstraint === "scale") {
+            const scaleY = newH / oldH;
+            newY = Math.round(node.y * scaleY);
+            newHeight = Math.max(10, Math.round(node.height * scaleY));
+          }
+
+          return {
+            ...node,
+            x: newX,
+            y: newY,
+            width: newWidth,
+            height: newHeight,
+          };
+        });
+
+        return {
+          ...f,
+          preset: presetKey,
+          width: newW,
+          height: newH,
+          safeArea: {
+            top: preset.safeArea?.top ?? (f.safeArea?.top || 47),
+            bottom: preset.safeArea?.bottom ?? (f.safeArea?.bottom || 34),
+            left: preset.safeArea?.left ?? (f.safeArea?.left || 0),
+            right: preset.safeArea?.right ?? (f.safeArea?.right || 0),
+            visible: f.safeArea?.visible !== undefined ? f.safeArea.visible : true,
+          },
+          nodes: updatedNodes,
+        };
+      })
+    );
+    toast.success(`Changed screen to ${preset.name}`);
+  };
+
+  const updateFrameDimensions = (fid, width, height) => {
+    commit((fr) =>
+      fr.map((f) => {
+        if (f.id !== fid) return f;
+        return {
+          ...f,
+          preset: "custom",
+          width: Math.max(100, width),
+          height: Math.max(100, height),
+        };
+      })
+    );
+  };
+
+  const updateSafeArea = (fid, safeAreaPatch) => {
+    commit((fr) =>
+      fr.map((f) => {
+        if (f.id !== fid) return f;
+        return {
+          ...f,
+          safeArea: {
+            ...(f.safeArea || { top: 47, bottom: 34, left: 0, right: 0, visible: true }),
+            ...safeAreaPatch,
+          },
+        };
+      })
+    );
+  };
+
+  // ----- Auto Layout -----
+  const createAutoLayoutFromSelection = () => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const nodes = activeF.nodes || [];
+    const matched = nodes.filter((n) => selectedIds.includes(n.id));
+
+    if (matched.length === 0) {
+      const autoId = uid("auto");
+      const autoNode = {
+        id: autoId,
+        type: "autoLayout",
+        name: "Auto Layout",
+        x: 24,
+        y: 120,
+        width: 342,
+        height: 180,
+        layout: {
+          direction: "vertical",
+          gap: 12,
+          padding: { top: 16, right: 16, bottom: 16, left: 16 },
+          align: "stretch",
+          justify: "start",
+          wrap: false,
+        },
+        children: [],
+        style: { fill: "transparent", stroke: "transparent" },
+      };
+      commit(mapActive((currNodes) => [...currNodes, autoNode]));
+      setSelectedIds([autoId]);
+      toast.success("Created Auto Layout");
+      return;
+    }
+
+    const minX = Math.min(...matched.map((n) => n.x));
+    const minY = Math.min(...matched.map((n) => n.y));
+    const maxX = Math.max(...matched.map((n) => n.x + n.width));
+    const maxY = Math.max(...matched.map((n) => n.y + n.height));
+
+    const autoId = uid("auto");
+    const childIds = matched.map((n) => n.id);
+
+    const autoNode = {
+      id: autoId,
+      type: "autoLayout",
+      name: "Auto Layout",
+      x: minX,
+      y: minY,
+      width: Math.max(100, maxX - minX),
+      height: Math.max(60, maxY - minY),
+      layout: {
+        direction: "vertical",
+        gap: 12,
+        padding: { top: 16, right: 16, bottom: 16, left: 16 },
+        align: "stretch",
+        justify: "start",
+        wrap: false,
+      },
+      children: childIds,
+      style: { fill: "transparent", stroke: "transparent" },
+    };
+
+    commit(
+      mapActive((currNodes) => {
+        const firstIdx = Math.min(...matched.map((n) => currNodes.indexOf(n)));
+        const updatedNodes = currNodes.map((n) =>
+          childIds.includes(n.id)
+            ? {
+                ...n,
+                parentId: autoId,
+                layoutSizing: n.layoutSizing || { width: "fill", height: "fixed" },
+              }
+            : n
+        );
+        updatedNodes.splice(firstIdx, 0, autoNode);
+        return updatedNodes;
+      })
+    );
+    setSelectedIds([autoId]);
+    toast.success("Created Auto Layout");
+  };
+
   // ----- Group & Ungroup -----
   const groupSelected = () => {
     const activeF = framesRef.current.find((f) => f.id === activeFrameId);
@@ -391,16 +626,22 @@ export default function EditorShell() {
       targetGroupId ||
       selectedIds.find((id) => {
         const n = nodes.find((node) => node.id === id);
-        return n && n.type === "group";
+        return n && (n.type === "group" || n.type === "autoLayout");
       });
     if (!gId) return;
-    const groupNode = nodes.find((n) => n.id === gId && n.type === "group");
+    const groupNode = nodes.find((n) => n.id === gId && (n.type === "group" || n.type === "autoLayout"));
     if (!groupNode) return;
 
-    commit(mapActive((currNodes) => currNodes.filter((n) => n.id !== gId)));
+    commit(
+      mapActive((currNodes) =>
+        currNodes
+          .filter((n) => n.id !== gId)
+          .map((n) => (n.parentId === gId ? { ...n, parentId: undefined } : n))
+      )
+    );
     const released = groupNode.children || [];
     setSelectedIds(released);
-    toast.success("Ungrouped element");
+    toast.success(groupNode.type === "autoLayout" ? "Unpacked Auto Layout" : "Ungrouped element");
   };
 
   // ----- Alignment & Distribute Spacing -----
@@ -433,15 +674,17 @@ export default function EditorShell() {
         )
       );
     } else {
-      // Single node aligned to screen (390 x 844)
+      // Single node aligned to screen
       const n = matched[0];
+      const screenW = activeF.width || 390;
+      const screenH = activeF.height || 844;
       const patch = {};
       if (alignment === "left") patch.x = 24;
-      else if (alignment === "center") patch.x = Math.round((390 - n.width) / 2);
-      else if (alignment === "right") patch.x = 390 - n.width - 24;
+      else if (alignment === "center") patch.x = Math.round((screenW - n.width) / 2);
+      else if (alignment === "right") patch.x = screenW - n.width - 24;
       else if (alignment === "top") patch.y = 24;
-      else if (alignment === "middle") patch.y = Math.round((844 - n.height) / 2);
-      else if (alignment === "bottom") patch.y = 844 - n.height - 24;
+      else if (alignment === "middle") patch.y = Math.round((screenH - n.height) / 2);
+      else if (alignment === "bottom") patch.y = screenH - n.height - 24;
       commit(mapActive((currNodes) => currNodes.map((node) => (node.id === n.id ? { ...node, ...patch } : node))));
     }
   };
@@ -1122,6 +1365,9 @@ export default function EditorShell() {
       } else if (meta && e.key.toLowerCase() === "y") {
         e.preventDefault();
         redo();
+      } else if (e.shiftKey && (e.key === "A" || e.key === "a")) {
+        e.preventDefault();
+        createAutoLayoutFromSelection();
       } else if (meta && e.key.toLowerCase() === "c") {
         e.preventDefault();
         copySelection();
@@ -1193,6 +1439,13 @@ export default function EditorShell() {
         onRedo={redo}
         canUndo={hist.past.length > 0}
         canRedo={hist.future.length > 0}
+        activeFrame={activeFrame}
+        onChangeFramePreset={(presetKey) => changeFramePreset(activeFrameId, presetKey)}
+        onToggleSafeArea={() =>
+          updateSafeArea(activeFrameId, {
+            visible: activeFrame?.safeArea?.visible === false,
+          })
+        }
       />
 
       <div className="flex min-h-0 flex-1">
@@ -1276,6 +1529,11 @@ export default function EditorShell() {
           designTokens={designTokens}
           mode={mode}
           frames={frames}
+          activeFrame={activeFrame}
+          onChangeFramePreset={(presetKey) => changeFramePreset(activeFrameId, presetKey)}
+          onChangeFrameDimensions={(w, h) => updateFrameDimensions(activeFrameId, w, h)}
+          onUpdateSafeArea={(patch) => updateSafeArea(activeFrameId, patch)}
+          onCreateAutoLayout={createAutoLayoutFromSelection}
         />
       </div>
 

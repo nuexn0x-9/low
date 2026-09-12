@@ -372,9 +372,11 @@ export default function CanvasArea({
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }} className="flex items-start gap-16">
           {frames.map((frame) => {
             const isActive = frame.id === activeFrameId;
-            const visibleNodes = (frame.nodes || []).filter((n) => !n.hidden);
+            const frameW = frame.width || FRAME.width;
+            const frameH = frame.height || FRAME.height;
+            const visibleNodes = (frame.nodes || []).filter((n) => !n.hidden && !n.parentId);
             const selectedNodes = isActive
-              ? visibleNodes.filter((n) => effectiveSelectedIds.includes(n.id))
+              ? (frame.nodes || []).filter((n) => effectiveSelectedIds.includes(n.id))
               : [];
             const singleSelected = selectedNodes.length === 1 ? selectedNodes[0] : null;
 
@@ -407,7 +409,7 @@ export default function CanvasArea({
                 >
                   <span className="text-[13px] font-medium">{frame.name}</span>
                   <span className="text-[12px] text-[#a1a1aa]">
-                    {FRAME.width} × {FRAME.height}
+                    {frame.preset || "iPhone 15"} • {frameW} × {frameH}
                   </span>
                 </button>
 
@@ -431,12 +433,43 @@ export default function CanvasArea({
                   className={`relative overflow-hidden rounded-[14px] bg-white transition-shadow ${
                     isActive ? "border-2 border-[#2563eb]" : "border border-[#d4d4d8]"
                   }`}
-                  style={{ width: FRAME.width, height: FRAME.height }}
+                  style={{ width: frameW, height: frameH }}
                 >
                   <div className="pointer-events-none flex h-10 items-center justify-between px-6 text-[12px] font-semibold text-[#18181b]">
                     <span>9:41</span>
                     <span className="tracking-widest text-[#a1a1aa]">• • •</span>
                   </div>
+
+                  {/* Safe Area Guide Overlay */}
+                  {frame.safeArea && frame.safeArea.visible !== false && (
+                    <div
+                      data-testid={`safe-area-guide-${frame.id}`}
+                      className="pointer-events-none absolute inset-0 z-10"
+                    >
+                      {frame.safeArea.top > 0 && (
+                        <div
+                          data-testid={`safe-area-top-${frame.id}`}
+                          className="absolute left-0 right-0 border-b border-dashed border-[#2563eb]/40 bg-[#2563eb]/5"
+                          style={{ top: 0, height: frame.safeArea.top }}
+                        >
+                          <span className="absolute bottom-0.5 right-2 text-[9px] font-mono text-[#2563eb]/70">
+                            Safe Top {frame.safeArea.top}px
+                          </span>
+                        </div>
+                      )}
+                      {frame.safeArea.bottom > 0 && (
+                        <div
+                          data-testid={`safe-area-bottom-${frame.id}`}
+                          className="absolute left-0 right-0 border-t border-dashed border-[#2563eb]/40 bg-[#2563eb]/5"
+                          style={{ bottom: 0, height: frame.safeArea.bottom }}
+                        >
+                          <span className="absolute top-0.5 right-2 text-[9px] font-mono text-[#2563eb]/70">
+                            Safe Bottom {frame.safeArea.bottom}px
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Render Visible Nodes */}
                   {visibleNodes.map((node) => {
@@ -474,7 +507,7 @@ export default function CanvasArea({
                           data-testid={`canvas-node-${node.id}`}
                           style={{ visibility: editingTextNodeId === node.id ? "hidden" : "visible" }}
                         >
-                          <NodeView node={node} components={components} />
+                          <NodeView node={node} components={components} allNodes={frame.nodes || []} />
                         </div>
                       </div>
                     );

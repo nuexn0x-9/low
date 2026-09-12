@@ -24,6 +24,10 @@ ALLOWED_NODE_TYPES = {
     "group",
     "componentinstance",
     "componentInstance",
+    "autolayout",
+    "autoLayout",
+    "scrollarea",
+    "scrollArea",
 }
 
 
@@ -88,6 +92,129 @@ def normalize_node(raw: Dict[str, Any], frame_name: str, index: int) -> Dict[str
         overrides = raw.get("overrides", {})
         node["overrides"] = overrides if isinstance(overrides, dict) else {}
 
+    # AutoLayout validation
+    if node_type in ("autolayout", "autoLayout"):
+        node["type"] = "autoLayout"
+        raw_children = raw.get("children", [])
+        if not isinstance(raw_children, list):
+            raise ValueError(f"AutoLayout node '{node_id}' in frame '{frame_name}' must have a list of children IDs")
+        if node_id in raw_children:
+            raise ValueError(f"AutoLayout node '{node_id}' in frame '{frame_name}' cannot include itself as a child")
+        node["children"] = [str(c) for c in raw_children]
+
+        layout = raw.get("layout", {})
+        if not isinstance(layout, dict):
+            layout = {}
+
+        direction = str(layout.get("direction", "vertical")).lower()
+        if direction not in ("vertical", "horizontal"):
+            raise ValueError(f"AutoLayout node '{node_id}' has invalid direction '{direction}'. Must be 'vertical' or 'horizontal'")
+
+        try:
+            gap = float(layout.get("gap", 0))
+        except (TypeError, ValueError):
+            raise ValueError(f"AutoLayout node '{node_id}' has non-numeric gap")
+        if gap < 0:
+            raise ValueError(f"AutoLayout node '{node_id}' has negative gap ({gap})")
+
+        padding = layout.get("padding", {})
+        if isinstance(padding, (int, float)):
+            p_val = float(padding)
+            if p_val < 0:
+                raise ValueError(f"AutoLayout node '{node_id}' has negative padding ({p_val})")
+            padding = {"top": p_val, "right": p_val, "bottom": p_val, "left": p_val}
+        elif isinstance(padding, dict):
+            norm_padding = {}
+            for side in ("top", "right", "bottom", "left"):
+                try:
+                    s_val = float(padding.get(side, 0))
+                except (TypeError, ValueError):
+                    raise ValueError(f"AutoLayout node '{node_id}' has non-numeric padding for '{side}'")
+                if s_val < 0:
+                    raise ValueError(f"AutoLayout node '{node_id}' has negative padding for '{side}' ({s_val})")
+                norm_padding[side] = s_val
+            padding = norm_padding
+        else:
+            padding = {"top": 0, "right": 0, "bottom": 0, "left": 0}
+
+        align = str(layout.get("align", "stretch")).lower()
+        if align not in ("start", "center", "end", "stretch"):
+            raise ValueError(f"AutoLayout node '{node_id}' has invalid align '{align}'. Must be 'start', 'center', 'end', or 'stretch'")
+
+        justify = str(layout.get("justify", "start")).lower()
+        if justify not in ("start", "center", "end", "space-between"):
+            raise ValueError(f"AutoLayout node '{node_id}' has invalid justify '{justify}'. Must be 'start', 'center', 'end', or 'space-between'")
+
+        wrap = bool(layout.get("wrap", False))
+
+        node["layout"] = {
+            "direction": direction,
+            "gap": gap,
+            "padding": padding,
+            "align": align,
+            "justify": justify,
+            "wrap": wrap,
+        }
+
+    # ScrollArea validation
+    if node_type in ("scrollarea", "scrollArea"):
+        node["type"] = "scrollArea"
+        raw_children = raw.get("children", [])
+        if not isinstance(raw_children, list):
+            raise ValueError(f"ScrollArea node '{node_id}' in frame '{frame_name}' must have a list of children IDs")
+        if node_id in raw_children:
+            raise ValueError(f"ScrollArea node '{node_id}' in frame '{frame_name}' cannot include itself as a child")
+        node["children"] = [str(c) for c in raw_children]
+
+        scroll = raw.get("scroll", {})
+        if not isinstance(scroll, dict):
+            scroll = {}
+        direction = str(scroll.get("direction", "vertical")).lower()
+        if direction not in ("vertical", "horizontal", "both"):
+            raise ValueError(f"ScrollArea node '{node_id}' has invalid scroll direction '{direction}'")
+        try:
+            content_height = float(scroll.get("contentHeight", height))
+            content_width = float(scroll.get("contentWidth", width))
+        except (TypeError, ValueError):
+            raise ValueError(f"ScrollArea node '{node_id}' has non-numeric contentHeight/contentWidth")
+        if content_height < 0 or content_width < 0:
+            raise ValueError(f"ScrollArea node '{node_id}' has negative content dimensions")
+
+        node["scroll"] = {
+            "direction": direction,
+            "contentHeight": content_height,
+            "contentWidth": content_width,
+            "showIndicator": bool(scroll.get("showIndicator", True)),
+        }
+
+    # Child layout sizing
+    if "layoutSizing" in raw and isinstance(raw["layoutSizing"], dict):
+        ls = raw["layoutSizing"]
+        w_sizing = str(ls.get("width", "fixed")).lower()
+        h_sizing = str(ls.get("height", "fixed")).lower()
+        if w_sizing not in ("fixed", "fill", "hug"):
+            raise ValueError(f"Node '{node_id}' has invalid layoutSizing.width '{w_sizing}'. Must be 'fixed', 'fill', or 'hug'")
+        if h_sizing not in ("fixed", "fill", "hug"):
+            raise ValueError(f"Node '{node_id}' has invalid layoutSizing.height '{h_sizing}'. Must be 'fixed', 'fill', or 'hug'")
+        node["layoutSizing"] = {"width": w_sizing, "height": h_sizing}
+
+    # Responsive constraints
+    if "constraints" in raw and isinstance(raw["constraints"], dict):
+        cons = raw["constraints"]
+        h_cons = str(cons.get("horizontal", "left")).lower()
+        v_cons = str(cons.get("vertical", "top")).lower()
+        allowed_h = ("left", "right", "left-right", "center", "scale")
+        allowed_v = ("top", "bottom", "top-bottom", "center", "scale")
+        if h_cons not in allowed_h:
+            raise ValueError(f"Node '{node_id}' has invalid horizontal constraint '{h_cons}'. Must be one of: {', '.join(allowed_h)}")
+        if v_cons not in allowed_v:
+            raise ValueError(f"Node '{node_id}' has invalid vertical constraint '{v_cons}'. Must be one of: {', '.join(allowed_v)}")
+        node["constraints"] = {"horizontal": h_cons, "vertical": v_cons}
+
+    # Parent ID reference
+    if "parentId" in raw and raw["parentId"]:
+        node["parentId"] = str(raw["parentId"]).strip()
+
     # Layer workflow flags
     if "locked" in raw:
         node["locked"] = bool(raw.get("locked"))
@@ -127,11 +254,40 @@ def normalize_frame(raw: Dict[str, Any], index: int) -> Dict[str, Any]:
         normalize_node(n, frame_name, i) for i, n in enumerate(raw_nodes)
     ]
 
-    return {
+    frame = {
         "id": frame_id,
         "name": frame_name,
         "nodes": normalized_nodes,
     }
+
+    if "width" in raw:
+        try:
+            frame["width"] = float(raw["width"])
+        except (TypeError, ValueError):
+            pass
+    if "height" in raw:
+        try:
+            frame["height"] = float(raw["height"])
+        except (TypeError, ValueError):
+            pass
+    if "preset" in raw and raw["preset"]:
+        frame["preset"] = str(raw["preset"]).lower()
+
+    if "safeArea" in raw and isinstance(raw["safeArea"], dict):
+        sa = raw["safeArea"]
+        norm_sa = {}
+        for side in ("top", "bottom", "left", "right"):
+            try:
+                s_val = float(sa.get(side, 0))
+            except (TypeError, ValueError):
+                raise ValueError(f"Frame '{frame_id}' has non-numeric safeArea '{side}'")
+            if s_val < 0:
+                raise ValueError(f"Frame '{frame_id}' has negative safeArea '{side}' ({s_val})")
+            norm_sa[side] = s_val
+        norm_sa["visible"] = bool(sa.get("visible", True))
+        frame["safeArea"] = norm_sa
+
+    return frame
 
 
 def validate_and_normalize_low_data(data: Any) -> Tuple[bool, str, List[Dict[str, Any]], List[str], List[str]]:

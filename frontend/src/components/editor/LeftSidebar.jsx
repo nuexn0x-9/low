@@ -56,6 +56,10 @@ const layerIcon = (type) => {
       return MousePointer2;
     case "group":
       return Folder;
+    case "autoLayout":
+      return Layers;
+    case "scrollArea":
+      return LayoutTemplate;
     case "frame":
       return Frame;
     case "componentInstance":

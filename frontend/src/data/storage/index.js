@@ -15,6 +15,8 @@ export const parseImportJSON = local.parseImportJSON;
 export const relativeTime = local.relativeTime;
 export const DEFAULT_DESIGN_TOKENS = local.DEFAULT_DESIGN_TOKENS;
 export const STYLE_PRESETS = local.STYLE_PRESETS;
+export const FRAME_PRESETS = local.FRAME_PRESETS;
+export const getFramePreset = local.getFramePreset;
 
 // Mode and status tracking
 let _backendOnline = false;

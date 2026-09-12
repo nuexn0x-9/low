@@ -114,50 +114,74 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-center p-8">
-          <div style={{ width: FRAME.width * scale, height: FRAME.height * scale }}>
+        <div
+          className="flex items-center justify-center p-6"
+          style={{ width: (frame?.width || FRAME.width) * scale + 48, height: (frame?.height || FRAME.height) * scale + 48 }}
+        >
+          <div
+            style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
+            className="relative overflow-hidden rounded-[26px] border-[6px] border-[#0f0f10] bg-white"
+          >
             <div
-              style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
-              className="relative overflow-hidden rounded-[26px] border-[6px] border-[#0f0f10] bg-white"
+              key={currentId}
+              className={`relative overflow-hidden ${anim}`}
+              style={{ width: frame?.width || FRAME.width, height: frame?.height || FRAME.height }}
             >
-              <div
-                key={currentId}
-                className={`relative overflow-hidden ${anim}`}
-                style={{ width: FRAME.width, height: FRAME.height }}
-              >
-                <div className="flex h-10 items-center justify-between px-6 text-[12px] font-semibold text-[#18181b]">
-                  <span>9:41</span>
-                  <span className="tracking-widest text-[#a1a1aa]">• • •</span>
-                </div>
-                {(frame?.nodes || [])
-                  .filter((node) => !node.hidden)
-                  .map((node) => {
-                    const clickable = !!resolveTarget(frames, node) || node.prototype?.action === "back";
-                    return (
-                      <div
-                        key={node.id}
-                        onClick={() => onNodeClick(node)}
-                        style={{ cursor: clickable ? "pointer" : "default" }}
-                      >
-                        <NodeView node={node} />
-                      </div>
-                    );
-                  })}
+              <div className="flex h-10 items-center justify-between px-6 text-[12px] font-semibold text-[#18181b]">
+                <span>9:41</span>
+                <span className="tracking-widest text-[#a1a1aa]">• • •</span>
+              </div>
 
-                {overlayFrame && (
-                  <div
-                    data-testid="preview-overlay-backdrop"
-                    onClick={() => {
-                      if (overlay.dismissOnOutsideClick) closeOverlay();
-                    }}
-                    className={`absolute inset-0 z-30 flex bg-black/50 ${
-                      overlay.overlayType === "centered-dialog"
-                        ? "items-center justify-center p-6"
-                        : "items-end justify-center"
-                    } ${overlay.transition === "fade" ? "low-anim-fade" : "low-anim-slide"}`}
-                  >
+              {/* Safe Area Guide Overlay in Preview */}
+              {frame?.safeArea && frame.safeArea.visible !== false && (
+                <div
+                  data-testid="preview-safe-area-overlay"
+                  className="pointer-events-none absolute inset-0 z-20"
+                >
+                  {frame.safeArea.top > 0 && (
                     <div
-                      data-testid="preview-overlay-content"
+                      className="absolute left-0 right-0 border-b border-dashed border-[#2563eb]/20"
+                      style={{ top: 0, height: frame.safeArea.top }}
+                    />
+                  )}
+                  {frame.safeArea.bottom > 0 && (
+                    <div
+                      className="absolute left-0 right-0 border-t border-dashed border-[#2563eb]/20"
+                      style={{ bottom: 0, height: frame.safeArea.bottom }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {(frame?.nodes || [])
+                .filter((node) => !node.hidden && !node.parentId)
+                .map((node) => {
+                  const clickable = !!resolveTarget(frames, node) || node.prototype?.action === "back";
+                  return (
+                    <div
+                      key={node.id}
+                      onClick={() => onNodeClick(node)}
+                      style={{ cursor: clickable ? "pointer" : "default" }}
+                    >
+                      <NodeView node={node} allNodes={frame?.nodes || []} />
+                    </div>
+                  );
+                })}
+
+              {overlayFrame && (
+                <div
+                  data-testid="preview-overlay-backdrop"
+                  onClick={() => {
+                    if (overlay.dismissOnOutsideClick) closeOverlay();
+                  }}
+                  className={`absolute inset-0 z-30 flex bg-black/50 ${
+                    overlay.overlayType === "centered-dialog"
+                      ? "items-center justify-center p-6"
+                      : "items-end justify-center"
+                  } ${overlay.transition === "fade" ? "low-anim-fade" : "low-anim-slide"}`}
+                >
+                  <div
+                    data-testid="preview-overlay-content"
                       onClick={(e) => e.stopPropagation()}
                       className={`relative overflow-hidden bg-white shadow-2xl ${
                         overlay.overlayType === "centered-dialog"
@@ -180,7 +204,7 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
                               onClick={() => onNodeClick(node)}
                               style={{ cursor: clickable ? "pointer" : "default" }}
                             >
-                              <NodeView node={node} />
+                              <NodeView node={node} allNodes={overlayFrame.nodes || []} />
                             </div>
                           );
                         })}
@@ -191,7 +215,6 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
               </div>
             </div>
           </div>
-        </div>
 
         <div className="border-t border-[#3f3f46] px-4 py-2 text-center text-[10px] text-[#a1a1aa]">
           Tap linked elements to navigate between screens

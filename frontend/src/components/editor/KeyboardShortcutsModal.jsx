@@ -25,8 +25,9 @@ export default function KeyboardShortcutsModal({ onClose }) {
       ],
     },
     {
-      title: "Grouping",
+      title: "Layout & Grouping",
       shortcuts: [
+        { keys: ["Shift", "A"], desc: "Create Auto Layout from selection" },
         { keys: ["Ctrl / ⌘", "G"], desc: "Group selected elements" },
         { keys: ["Ctrl / ⌘", "Shift", "G"], desc: "Ungroup selected group" },
       ],

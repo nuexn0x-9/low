@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-09-12 (Phase 9: Responsive Layout & Auto Layout)
+
+### Added
+- **Auto Layout Containers (`autoLayout`)**:
+  - Flexbox flow direction (`vertical`, `horizontal`), configurable `gap`, and per-side padding (`top`, `right`, `bottom`, `left`).
+  - Alignment (`start`, `center`, `end`, `stretch`) and justification (`start`, `center`, `end`, `space-between`).
+  - Child sizing modes: `fixed` px, `fill` container, and `hug` contents.
+  - `Shift + A` shortcut and top toolbar button to pack selected elements into Auto Layout or unpack via ungroup (`Ctrl+Shift+G`).
+- **Responsive Constraints (`constraints`)**:
+  - Horizontal constraints: `left`, `right`, `left-right`, `center`, `scale`.
+  - Vertical constraints: `top`, `bottom`, `top-bottom`, `center`, `scale`.
+  - Automatic recalculation of child element positions and dimensions on screen frame resize.
+- **Mobile Device Frame Presets & Safe Area**:
+  - Screen presets: `iPhone 15`, `iPhone SE`, `Android Compact`, `Android Large`, and `Custom Size`.
+  - Configurable safe area insets (`top`, `bottom`, `left`, `right`) with visual dashed guidelines in editor and preview.
+  - Quick preset selector and safe area visibility toggle in Top Toolbar and Properties Panel.
+- **Scroll Area Containers (`scrollArea`)**:
+  - Scrollable viewport with `vertical`, `horizontal`, or `both` overflow and virtual scroll canvas dimensions.
+- **Universal Agent Connect API v2.3.0**:
+  - Bumped schema to `2.3.0` with 9 new atomic actions: `create_auto_layout_from_selection`, `update_auto_layout`, `insert_into_auto_layout`, `remove_from_auto_layout`, `reorder_auto_layout_child`, `update_constraints`, `update_frame_preset`, `update_safe_area`, `create_scroll_area`.
+
+## [1.2.0] - 2026-09-12 (Phase 8: Text, Components, and Design System Upgrade)
+
+### Added
+- **Canvas Text Editing**: Inline canvas text editing on double click with live blur/enter save.
+- **Typography & Color Tokens**: Full typography system (`fontFamily`, `fontSize`, `fontWeight`, `lineHeight`, `letterSpacing`, `textAlign`, `textTransform`, `textDecoration`).
+- **Component Instances**: Reusable custom components with master definitions and instances supporting text and style overrides with detach capability.
+- **Design System Tokens & Style Presets**: 11 one-click style presets (`primary_button`, `secondary_button`, `input_field`, `card`, `heading`, `body_text`, `label`, `app_bar`, `bottom_navigation`, `bottom_sheet`, `dialog`) and project design tokens.
+
+## [1.1.0] - 2026-09-11 (Phase 7: Editor Selection & Workflow Upgrade)
+
+### Added
+- **Multi-Select & Canvas Marquee**: Canvas marquee/lasso selection, `Shift + Click` / `Cmd + Click` multi-select, and shared bounding box.
+- **Group & Ungroup**: `Ctrl+G` group and `Ctrl+Shift+G` ungroup with bounding box calculations.
+- **Bulk Alignment & Spacing**: Left, center, right, top, middle, bottom alignment and horizontal/vertical spacing distribution.
+- **Layer Lock & Hide**: Lock and hide layers directly from the left sidebar layer tree.
+
 ## [1.0.0] - 2026-09-11 (MVP Release)
 
 ### Added

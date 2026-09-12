@@ -29,11 +29,15 @@ LOW adalah editor wireframe mobile open-source yang ringan dan dapat di-self-hos
 
 ## Key Features
 
-- **Monochrome Minimalist Canvas**: Mobile-first design environment (390 x 844 px mobile frames) focused on hierarchy, typography, and UX flow without visual noise.
+- **Monochrome Minimalist Canvas**: Mobile-first design environment focused on hierarchy, typography, and UX flow without visual noise.
+- **Auto Layout & Responsive Containers**: Flexbox layout engine with direction (vertical/horizontal), gap, padding, alignment, justification, wrapping, and child sizing (`fill`, `hug`, `fixed`). Shortcut: `Shift + A`.
+- **Responsive Constraints & Screen Presets**: Horizontal (`left`, `right`, `left-right`, `center`, `scale`) and vertical constraints that dynamically recalculate layout when switching screen presets (`iPhone 15`, `iPhone SE`, `Android Compact`, `Android Large`, `Custom Size`).
+- **Safe Area Insets & Scroll Areas**: Visual safe area guidelines in canvas and interactive preview, plus scrollable viewport containers (`scrollArea`).
+- **Typography & Reusable Component System**: Master component library with instance overrides (`detachInstance`), 11 design style presets, and design tokens (colors, radii, spacing).
+- **Multi-Select, Marquee & Workflow**: Multi-element marquee/lasso selection, `Shift+Click` / `Cmd+Click`, group/ungroup (`Ctrl+G`), alignment tools, and distribute spacing.
 - **Open `.low.json` Format**: Full document ownership. No proprietary formats, vendor lock-in, or hidden databases.
 - **AI Import Engine**: Generate production-ready mobile screens, component sets, and interactive navigation flows from natural language prompts. Works offline with zero-cost mock mode or connects to OpenAI & OpenAI-compatible endpoints.
-- **Universal Agent Connect**: Scoped HTTP API empowering external AI agents (Cursor, Claude, Codex, Antigravity) to read and modify canvas documents in real-time.
-- **Interactive In-App Settings**: Dedicated gear settings modals for both AI Import and Agent Connect to configure API providers, models, endpoints, presets, and security guardrails directly through the UI.
+- **Universal Agent Connect (v2.3.0)**: Scoped HTTP API empowering external AI agents (Cursor, Claude, Codex, Antigravity) to read and modify canvas documents in real-time, now with 27 atomic operations.
 - **Dry-Run & Atomic Batch Updates**: Simulate agent actions without mutating documents, or apply up to 25 operations in a single atomic transaction.
 - **Reversible Audit Trail**: Pre- and post-mutation snapshots on every agent event with instant 1-click undo.
 - **Self-Hostable in Seconds**: Lightweight stack running on SQLite (`aiosqlite` with WAL mode) packaged via clean Docker Compose or 1-click Windows launcher (`run.bat`).

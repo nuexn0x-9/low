@@ -71,23 +71,66 @@ export const templatePresets = {
   ],
 };
 
-export function blankFrame(name) {
+export const FRAME_PRESETS = {
+  "iPhone 15": { name: "iPhone 15", width: 390, height: 844, safeArea: { top: 44, bottom: 34, left: 0, right: 0, visible: true } },
+  "iPhone SE": { name: "iPhone SE", width: 375, height: 667, safeArea: { top: 20, bottom: 0, left: 0, right: 0, visible: true } },
+  "Android Compact": { name: "Android Compact", width: 360, height: 800, safeArea: { top: 24, bottom: 16, left: 0, right: 0, visible: true } },
+  "Android Large": { name: "Android Large", width: 412, height: 915, safeArea: { top: 24, bottom: 16, left: 0, right: 0, visible: true } },
+  "Custom Size": { name: "Custom Size", width: 390, height: 844, safeArea: { top: 0, bottom: 0, left: 0, right: 0, visible: true } },
+};
+
+export function getFramePreset(key) {
+  if (!key) return FRAME_PRESETS["iPhone 15"];
+  if (FRAME_PRESETS[key]) return FRAME_PRESETS[key];
+  const normalized = String(key).toLowerCase().replace(/[\s_-]+/g, "");
+  for (const [k, v] of Object.entries(FRAME_PRESETS)) {
+    if (k.toLowerCase().replace(/[\s_-]+/g, "") === normalized) return v;
+  }
+  return FRAME_PRESETS["iPhone 15"];
+}
+
+export function blankFrame(name, preset = "iPhone 15") {
+  const p = getFramePreset(preset);
   return {
     id: newId("frame"),
     name: name || "Screen",
+    preset: p.name,
+    width: p.width,
+    height: p.height,
+    safeArea: { ...p.safeArea },
     nodes: [
       tnode("text", "App Bar", 24, 52, 200, 28, name || "Screen", { color: "#18181b", fontSize: 20, fontWeight: 700, align: "left", opacity: 100 }),
     ],
   };
 }
 
-export function frameFromTemplate(presetKey, name) {
+export function frameFromTemplate(presetKey, name, preset = "iPhone 15") {
   const build = templatePresets[presetKey] || templatePresets.login;
-  return { id: newId("frame"), name: name || presetKey, nodes: build() };
+  const p = FRAME_PRESETS[preset] || FRAME_PRESETS["iPhone 15"];
+  return {
+    id: newId("frame"),
+    name: name || presetKey,
+    preset: p.name,
+    width: p.width,
+    height: p.height,
+    safeArea: { ...p.safeArea },
+    nodes: build(),
+  };
 }
 
 export function defaultFrames() {
-  return [{ id: "frame_login", name: "Login", nodes: defaultNodes() }];
+  const p = FRAME_PRESETS["iPhone 15"];
+  return [
+    {
+      id: "frame_login",
+      name: "Login",
+      preset: p.name,
+      width: p.width,
+      height: p.height,
+      safeArea: { ...p.safeArea },
+      nodes: defaultNodes(),
+    },
+  ];
 }
 
 export const DEFAULT_DESIGN_TOKENS = {
@@ -190,14 +233,28 @@ export function normalizeProject(p) {
   if (!p) return p;
   const designTokens = p.designTokens || DEFAULT_DESIGN_TOKENS;
   const components = Array.isArray(p.components) ? p.components : [];
-  if (Array.isArray(p.frames) && p.frames.length) {
-    return { ...p, designTokens, components };
-  }
+  const rawFrames = Array.isArray(p.frames) && p.frames.length
+    ? p.frames
+    : [{ id: "frame_login", name: "Login", nodes: p.nodes || defaultNodes() }];
+
+  const frames = rawFrames.map((f) => {
+    const presetKey = f.preset || "iPhone 15";
+    const presetDef = FRAME_PRESETS[presetKey] || FRAME_PRESETS["iPhone 15"];
+    return {
+      ...f,
+      preset: presetKey,
+      width: f.width || presetDef.width,
+      height: f.height || presetDef.height,
+      safeArea: f.safeArea || { ...presetDef.safeArea },
+      nodes: Array.isArray(f.nodes) ? f.nodes : defaultNodes(),
+    };
+  });
+
   return {
     ...p,
     designTokens,
     components,
-    frames: [{ id: "frame_login", name: "Login", nodes: p.nodes || defaultNodes() }],
+    frames,
   };
 }
 
@@ -238,23 +295,55 @@ export function parseImportJSON(text) {
 
   if (!frames || !frames.length) throw new Error("No frames found in file");
 
-  const normalizedFrames = frames.map((f) => ({
-    id: f.id || newId("frame"),
-    name: f.name || "Screen",
-    nodes: Array.isArray(f.nodes)
-      ? f.nodes.map((n) => ({
-          ...n,
-          id: n.id || newId(n.type || "node"),
-          style: n.style || {},
-          ...(n.type === "componentInstance"
-            ? {
-                componentId: n.componentId || "",
-                overrides: n.overrides || {},
-              }
-            : {}),
-        }))
-      : [],
-  }));
+  const normalizedFrames = frames.map((f) => {
+    const presetKey = f.preset || "iPhone 15";
+    const presetDef = FRAME_PRESETS[presetKey] || FRAME_PRESETS["iPhone 15"];
+    return {
+      id: f.id || newId("frame"),
+      name: f.name || "Screen",
+      preset: presetKey,
+      width: f.width || presetDef.width,
+      height: f.height || presetDef.height,
+      safeArea: f.safeArea || { ...presetDef.safeArea },
+      nodes: Array.isArray(f.nodes)
+        ? f.nodes.map((n) => {
+            const base = {
+              ...n,
+              id: n.id || newId(n.type || "node"),
+              style: n.style || {},
+            };
+            if (n.parentId) base.parentId = n.parentId;
+            if (n.constraints) base.constraints = n.constraints;
+            if (n.layoutSizing) base.layoutSizing = n.layoutSizing;
+            if (n.type === "autoLayout") {
+              base.layout = {
+                direction: n.layout?.direction || "vertical",
+                gap: n.layout?.gap ?? 12,
+                padding: n.layout?.padding || { top: 16, right: 16, bottom: 16, left: 16 },
+                align: n.layout?.align || "stretch",
+                justify: n.layout?.justify || "start",
+                wrap: Boolean(n.layout?.wrap),
+              };
+              base.children = Array.isArray(n.children) ? n.children : [];
+            }
+            if (n.type === "scrollArea") {
+              base.scroll = {
+                direction: n.scroll?.direction || "vertical",
+                contentHeight: n.scroll?.contentHeight || 1000,
+                contentWidth: n.scroll?.contentWidth || 390,
+                showIndicator: n.scroll?.showIndicator !== false,
+              };
+              base.children = Array.isArray(n.children) ? n.children : [];
+            }
+            if (n.type === "componentInstance") {
+              base.componentId = n.componentId || "";
+              base.overrides = n.overrides || {};
+            }
+            return base;
+          })
+        : [],
+    };
+  });
 
   // Attach designTokens and components to array for seamless dual usage
   normalizedFrames.frames = normalizedFrames;
