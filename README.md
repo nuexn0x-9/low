@@ -15,7 +15,7 @@
 
 *Self-hosted • Monochrome Minimalist • Open `.low.json` Format • Agent-Ready*
 
-[English](#overview) | [Bahasa Indonesia](#ringkasan-bahasa-indonesia) | [Try with Docker (2 Mins)](#try-with-docker-compose-in-2-minutes) | [Documentation](docs/) | [Sample Projects](examples/)
+[English](#overview) | [Bahasa Indonesia](#ringkasan-bahasa-indonesia) | [AI & Agent Tutorials](#tutorials-connecting-to-ai-import--agent-connect) | [Try with Docker (2 Mins)](#try-with-docker-compose-in-2-minutes) | [Documentation](docs/) | [Sample Projects](examples/)
 
 <br />
 
@@ -73,6 +73,202 @@ LOW is engineered from the ground up for the agentic coding era. Through **Unive
 - **Simulation**: Support for `dryRun: true` allows agents to preview outcomes without committing mutations.
 - **Atomic Batching**: Execute up to 25 operations in a single atomic transaction.
 - **Instant Rollback**: 1-click audit trail snapshot undo in the web UI.
+
+---
+
+## Tutorials: Connecting to AI Import & Agent Connect
+
+### 1. How to Connect & Use AI Import Engine
+
+The **AI Import Engine** generates production-ready, editable mobile screens, components, and interactive prototype flows from natural language prompts directly into `.low.json`.
+
+#### Option A: Zero-Configuration Offline Mock Mode (Default)
+LOW includes an offline deterministic mock provider that requires **zero API keys** and zero cost. It is ideal for local testing, fintech flows, settings screens, and bottom navigation:
+1. Open the LOW Editor in your browser ([http://localhost:3000](http://localhost:3000)).
+2. In the left sidebar, click the **AI Import** tab (`Sparkles` icon).
+3. Choose a prompt template or type your own (e.g. *"Fintech login screen with phone input and sign in button"*).
+4. Select the **Output Type**: `Screen`, `Component`, `Template`, or `Prototype Flow`.
+5. Click **Generate Draft** &rarr; review the generated layout preview &rarr; click **Apply to Canvas**.
+
+#### Option B: Connecting OpenAI or Local LLMs (Ollama, vLLM, DeepSeek)
+
+You can connect LOW to OpenAI (`gpt-4o-mini`, `gpt-4o`) or any OpenAI-compatible local/remote endpoint in two ways:
+
+##### Method 1: In-App UI Configuration (Easiest)
+1. In the LOW Editor, open the left sidebar and switch to the **AI Import** tab.
+2. Click the **⚙️ (Gear Icon)** in the AI Import panel header to open **AI Import Settings**.
+3. Select your provider:
+   - **OpenAI**: Enter your `sk-...` API key. Default model: `gpt-4o-mini`.
+   - **OpenAI Compatible**: Connect to **Ollama** (`http://localhost:11434/v1`), **vLLM** (`http://localhost:8000/v1`), **LocalAI**, or **DeepSeek**.
+4. Set the **Model Name** (e.g. `gpt-4o-mini`, `llama3.2`, `deepseek-chat`).
+5. Click **Test Connection** to verify endpoint reachability and latency.
+6. Click **Save Settings**. Your API key is stored securely with masked credentials.
+
+##### Method 2: Environment Variables (`.env`)
+In your root `.env` file (or Docker environment):
+```env
+# Choose provider: 'mock' (default) or 'openai'
+AI_PROVIDER=openai
+
+# OpenAI API Key (or local LLM dummy key like 'ollama')
+OPENAI_API_KEY=sk-your-openai-api-key
+
+# Optional: Custom base URL for Ollama / vLLM / DeepSeek
+OPENAI_BASE_URL=https://api.openai.com/v1
+# For Ollama: OPENAI_BASE_URL=http://localhost:11434/v1
+
+# Model selection
+AI_MODEL=gpt-4o-mini
+AI_TIMEOUT_SECONDS=30
+```
+Then restart your backend or Docker container:
+```bash
+docker compose restart backend
+```
+
+---
+
+### 2. How to Connect External AI Agents via Universal Agent Connect
+
+**Universal Agent Connect (v2.4.0)** enables autonomous coding assistants (**Cursor**, **Claude Desktop**, **Google Antigravity**, **OpenAI Codex**, **Hermes**) to inspect, edit, and export your canvas wireframes over a secure, scoped HTTP protocol.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Designer
+    participant UI as LOW Editor
+    participant Agent as External AI Agent (Cursor/Claude)
+    participant API as LOW Backend API
+
+    User->>UI: Select Preset & click "Start Session"
+    UI->>API: POST /api/agent/sessions
+    API-->>UI: Returns session_id + one-time X-LOW-Token
+    User->>Agent: Paste prompt & session token
+    Agent->>API: GET /document (Inspects frames & nodes)
+    Agent->>API: POST /actions (dryRun: true simulation)
+    Agent->>API: POST /actions (Atomic mutation / batch)
+    API-->>UI: Real-time canvas updates
+    User->>UI: (Optional) Click Undo to rollback
+```
+
+#### Step 1: Start an Agent Session in the Web UI
+1. Open the LOW Editor in your browser ([http://localhost:3000](http://localhost:3000)).
+2. In the left sidebar, click the **Agent** tab (`Bot` icon).
+3. Choose a **Permission Preset**:
+   - `Full Editor Assistant` (Default: complete document read/write/export access)
+   - `Design Assistant` (Layout, nodes, components, styling)
+   - `Prototype Assistant` (Interactions, navigation, links)
+   - `Read Only` (Document inspection without mutations)
+4. (Optional) Toggle **Dry Run Mode** if you want the agent to simulate mutations without modifying your document.
+5. Click **Start Session**.
+
+#### Step 2: Copy Token & Instructions
+- LOW generates a unique session ID and a one-time secret token:
+  ```http
+  X-LOW-Token: low_agent_...
+  ```
+- Click **Copy Instructions** to copy pre-formatted system prompts tailored for your agent.
+
+#### Step 3: Connect Your AI Assistant (Cursor, Claude, Antigravity, etc.)
+Paste the copied instructions into your AI agent's chat or prompt window:
+```txt
+You are connected to LOW Universal Agent Connect.
+Base URL: http://localhost:8000
+Session ID: <YOUR_SESSION_ID>
+Header: X-LOW-Token: <YOUR_TOKEN>
+
+Please inspect the current canvas document and add a "Sign Up" button below the login card.
+```
+
+#### Step 4: How the Agent Interacts with LOW (cURL Examples)
+
+##### A. Read Current Canvas Document
+```bash
+curl -X GET http://localhost:8000/api/agent/sessions/<SESSION_ID>/document \
+  -H "X-LOW-Token: <YOUR_TOKEN>"
+```
+
+##### B. Safe Simulation (Dry Run)
+Test how a change looks without actually saving it to the database:
+```bash
+curl -X POST http://localhost:8000/api/agent/sessions/<SESSION_ID>/actions \
+  -H "Content-Type: application/json" \
+  -H "X-LOW-Token: <YOUR_TOKEN>" \
+  -d '{
+    "action": "add_element",
+    "dryRun": true,
+    "params": {
+      "type": "button",
+      "name": "Sign Up Button",
+      "text": "Create Free Account",
+      "x": 24,
+      "y": 440,
+      "width": 342,
+      "height": 50,
+      "style": { "fill": "#18181b", "color": "#ffffff", "radius": 10 }
+    }
+  }'
+```
+
+##### C. Apply an Atomic Mutation (Single Action)
+```bash
+curl -X POST http://localhost:8000/api/agent/sessions/<SESSION_ID>/actions \
+  -H "Content-Type: application/json" \
+  -H "X-LOW-Token: <YOUR_TOKEN>" \
+  -d '{
+    "action": "add_element",
+    "params": {
+      "type": "button",
+      "name": "Sign Up Button",
+      "text": "Create Free Account",
+      "x": 24,
+      "y": 440,
+      "width": 342,
+      "height": 50,
+      "style": { "fill": "#18181b", "color": "#ffffff", "radius": 10 }
+    }
+  }'
+```
+
+##### D. Execute an Atomic Batch (Up to 25 operations in 1 transaction)
+```bash
+curl -X POST http://localhost:8000/api/agent/sessions/<SESSION_ID>/actions \
+  -H "Content-Type: application/json" \
+  -H "X-LOW-Token: <YOUR_TOKEN>" \
+  -d '{
+    "action": "batch_update",
+    "params": {
+      "operations": [
+        {
+          "action": "create_screen",
+          "params": { "name": "Success Screen", "width": 390, "height": 844 }
+        },
+        {
+          "action": "add_element",
+          "params": {
+            "type": "text",
+            "name": "Success Title",
+            "text": "Payment Successful!",
+            "x": 24,
+            "y": 100,
+            "width": 342,
+            "height": 40,
+            "style": { "fontSize": 20, "fontWeight": 700, "align": "center" }
+          }
+        }
+      ]
+    }
+  }'
+```
+
+##### E. Instant Undo / Rollback
+If an agent makes a mistake, revert instantly either:
+- **In the UI**: Click **Undo** next to any event in the live audit log inside the Agent tab.
+- **Via API**:
+  ```bash
+  curl -X POST http://localhost:8000/api/agent/sessions/<SESSION_ID>/undo-last \
+    -H "X-LOW-Token: <YOUR_TOKEN>"
+  ```
 
 ---
 
