@@ -29,6 +29,7 @@ import {
 } from "@/data/agentApi";
 
 import { applyAiImport } from "@/data/aiApi";
+import { generateFrameSvg, downloadSvg, downloadPngFromSvg } from "@/utils/exportUtils";
 import TopToolbar from "@/components/editor/TopToolbar";
 import LeftSidebar from "@/components/editor/LeftSidebar";
 import CanvasArea from "@/components/editor/CanvasArea";
@@ -1013,6 +1014,36 @@ export default function EditorShell() {
     toast.success("Exported .low.json");
   };
 
+  const exportCurrentFrameSvg = () => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) {
+      toast.error("No active screen to export");
+      return;
+    }
+    const svgStr = generateFrameSvg(activeF, {
+      includeGuides: false,
+      components: componentsRef.current,
+    });
+    const filename = `${activeF.name.replace(/\s+/g, "_").toLowerCase() || "screen"}.svg`;
+    downloadSvg(svgStr, filename);
+    toast.success(`Exported ${filename}`);
+  };
+
+  const exportCurrentFramePng = () => {
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) {
+      toast.error("No active screen to export");
+      return;
+    }
+    const svgStr = generateFrameSvg(activeF, {
+      includeGuides: false,
+      components: componentsRef.current,
+    });
+    const filename = `${activeF.name.replace(/\s+/g, "_").toLowerCase() || "screen"}.png`;
+    downloadPngFromSvg(svgStr, activeF.width || 390, activeF.height || 844, filename);
+    toast.success(`Exported ${filename}`);
+  };
+
   const doImportFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -1446,6 +1477,8 @@ export default function EditorShell() {
             visible: activeFrame?.safeArea?.visible === false,
           })
         }
+        onExportFrameSvg={exportCurrentFrameSvg}
+        onExportFramePng={exportCurrentFramePng}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -1534,6 +1567,9 @@ export default function EditorShell() {
           onChangeFrameDimensions={(w, h) => updateFrameDimensions(activeFrameId, w, h)}
           onUpdateSafeArea={(patch) => updateSafeArea(activeFrameId, patch)}
           onCreateAutoLayout={createAutoLayoutFromSelection}
+          onExportPrototypeZip={() => {
+            window.open(`/api/projects/${id}/export/prototype.zip`, "_blank");
+          }}
         />
       </div>
 

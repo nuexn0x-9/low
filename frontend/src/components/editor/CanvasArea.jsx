@@ -138,6 +138,12 @@ export default function CanvasArea({
     // Ignore locked nodes
     if (node.locked) return;
 
+    // Read-only in inspect mode
+    if (mode === "inspect") {
+      setSelection([node.id]);
+      return;
+    }
+
     const isModifier = e.shiftKey || e.ctrlKey || e.metaKey;
 
     if (isModifier) {
@@ -200,7 +206,7 @@ export default function CanvasArea({
 
   const startResize = (e, node, handle) => {
     e.stopPropagation();
-    if (node.locked) return;
+    if (node.locked || mode === "inspect") return;
     setSelection([node.id]);
     beginTransaction();
     drag.current = {

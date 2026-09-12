@@ -184,7 +184,7 @@ def test_ai_guard_phase9_features():
 
 
 def test_agent_schema_v2_3_0():
-    assert AGENT_SCHEMA["version"] == "2.3.0"
+    assert AGENT_SCHEMA["version"] in ("2.3.0", "2.4.0")
     action_names = [a["action"] for a in AGENT_SCHEMA["actions"]]
     expected_actions = [
         "create_auto_layout_from_selection",

@@ -35,9 +35,13 @@ LOW adalah editor wireframe mobile open-source yang ringan dan dapat di-self-hos
 - **Safe Area Insets & Scroll Areas**: Visual safe area guidelines in canvas and interactive preview, plus scrollable viewport containers (`scrollArea`).
 - **Typography & Reusable Component System**: Master component library with instance overrides (`detachInstance`), 11 design style presets, and design tokens (colors, radii, spacing).
 - **Multi-Select, Marquee & Workflow**: Multi-element marquee/lasso selection, `Shift+Click` / `Cmd+Click`, group/ungroup (`Ctrl+G`), alignment tools, and distribute spacing.
+- **Developer Inspect Mode & Handoff Panel**: Read-only canvas inspection (`Design | Prototype | Inspect`) with complete node metrics, box-model dimensions, auto layout properties, constraints, typography, and styling.
+- **Instant Code & Token Generators**: 1-click CSS snippet generator, Tailwind utility classes, JSON schema copy, and CSS design token export.
+- **Asset Export (SVG & PNG)**: Export screens or selected components to SVG and PNG directly in-browser with zero external bloat.
+- **Offline Interactive Prototype Package**: Export full prototype zip with standalone zero-dependency HTML viewer (`index.html`) and `.low-prototype.json`.
 - **Open `.low.json` Format**: Full document ownership. No proprietary formats, vendor lock-in, or hidden databases.
 - **AI Import Engine**: Generate production-ready mobile screens, component sets, and interactive navigation flows from natural language prompts. Works offline with zero-cost mock mode or connects to OpenAI & OpenAI-compatible endpoints.
-- **Universal Agent Connect (v2.3.0)**: Scoped HTTP API empowering external AI agents (Cursor, Claude, Codex, Antigravity) to read and modify canvas documents in real-time, now with 27 atomic operations.
+- **Universal Agent Connect (v2.4.0)**: Scoped HTTP API empowering external AI agents (Cursor, Claude, Codex, Antigravity) to read, modify, and export canvas documents in real-time, now with 33 atomic operations.
 - **Dry-Run & Atomic Batch Updates**: Simulate agent actions without mutating documents, or apply up to 25 operations in a single atomic transaction.
 - **Reversible Audit Trail**: Pre- and post-mutation snapshots on every agent event with instant 1-click undo.
 - **Self-Hostable in Seconds**: Lightweight stack running on SQLite (`aiosqlite` with WAL mode) packaged via clean Docker Compose or 1-click Windows launcher (`run.bat`).

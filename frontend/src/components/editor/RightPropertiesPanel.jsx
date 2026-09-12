@@ -16,9 +16,25 @@ import {
   Sparkles,
   Sliders,
   Unlink,
+  Copy,
+  Download,
+  Code2,
+  Terminal,
+  FileCode,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Input, Field, Segmented } from "@/components/primitives/Input";
 import { STYLE_PRESETS, FRAME_PRESETS, getFramePreset } from "@/data/storage";
+import {
+  generateNodeCss,
+  generateTailwindClasses,
+  generateTokensCss,
+  generateNodeSvg,
+  generateFrameSvg,
+  downloadSvg,
+  downloadPngFromSvg,
+  downloadFile,
+} from "@/utils/exportUtils";
 
 const NumberField = ({ label, value, onChange, testid, suffix, placeholder, step = 1 }) => (
   <Field label={label}>
@@ -94,6 +110,7 @@ export default function RightPropertiesPanel({
   onChangeFrameDimensions,
   onUpdateSafeArea,
   onCreateAutoLayout,
+  onExportPrototypeZip,
 }) {
   // Style preset applicator helper
   const handleApplyPreset = (presetKey, targetNodes) => {
@@ -107,6 +124,430 @@ export default function RightPropertiesPanel({
       updateNode(n.id, { style: { ...preset.style } });
     });
   };
+
+  const activeNode = node || (selectedNodes.length === 1 ? selectedNodes[0] : null);
+
+  // ----- Developer Inspect / Handoff Mode -----
+  if (mode === "inspect") {
+    return (
+      <aside
+        data-testid="inspect-panel"
+        className="low-scroll flex w-72 shrink-0 flex-col overflow-auto border-l border-[#e4e4e7] bg-white text-[#18181b]"
+      >
+        <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#e4e4e7] px-3 bg-[#fafafa]">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#18181b]">
+            <Code2 size={14} className="text-[#2563eb]" />
+            <span>Developer Inspect</span>
+          </div>
+          <span className="text-[10px] font-mono rounded bg-[#e4e4e7] px-1.5 py-0.5 text-[#3f3f46]">
+            {activeNode ? activeNode.type : selectedNodes.length > 1 ? `Multi (${selectedNodes.length})` : "Screen"}
+          </span>
+        </div>
+
+        {activeNode || selectedNodes.length > 1 ? (
+          <div className="p-3 space-y-4 text-xs">
+            {/* 1. Identity */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Identity
+              </div>
+              <div className="space-y-1 font-mono text-[11px] bg-[#f4f4f5] p-2 rounded-md border border-[#e4e4e7]">
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">ID:</span>
+                  <span className="font-semibold select-all" data-testid="inspect-node-id">
+                    {activeNode ? activeNode.id : selectedNodes.map((n) => n.id).join(", ")}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Name:</span>
+                  <span className="select-all" data-testid="inspect-node-name">
+                    {activeNode ? activeNode.name || activeNode.type : `Multiple Elements (${selectedNodes.length})`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Type:</span>
+                  <span className="select-all" data-testid="inspect-node-type">
+                    {activeNode ? activeNode.type : "multiple"}
+                  </span>
+                </div>
+                {activeNode?.parentId && (
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Parent:</span>
+                    <span className="select-all text-[#2563eb]">{activeNode.parentId}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 2. Layout & Metrics */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Layout & Dimensions
+              </div>
+              {activeNode ? (
+                <>
+                  <div className="grid grid-cols-2 gap-1.5 font-mono text-[11px]">
+                    <div className="bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7]">
+                      <span className="text-[#71717a]">X: </span>
+                      <span className="font-semibold">{activeNode.x}px</span>
+                    </div>
+                    <div className="bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7]">
+                      <span className="text-[#71717a]">Y: </span>
+                      <span className="font-semibold">{activeNode.y}px</span>
+                    </div>
+                    <div className="bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7]">
+                      <span className="text-[#71717a]">W: </span>
+                      <span className="font-semibold">{activeNode.width}px</span>
+                    </div>
+                    <div className="bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7]">
+                      <span className="text-[#71717a]">H: </span>
+                      <span className="font-semibold">{activeNode.height}px</span>
+                    </div>
+                  </div>
+                  {activeNode.parentId ? (
+                    <div className="mt-1.5 text-[11px] font-mono bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7] flex justify-between">
+                      <span className="text-[#71717a]">Sizing:</span>
+                      <span>W: {activeNode.layoutSizing?.width || "fixed"}, H: {activeNode.layoutSizing?.height || "fixed"}</span>
+                    </div>
+                  ) : (
+                    <div className="mt-1.5 text-[11px] font-mono bg-[#f4f4f5] p-1.5 rounded border border-[#e4e4e7] flex justify-between">
+                      <span className="text-[#71717a]">Constraints:</span>
+                      <span>H: {activeNode.constraints?.horizontal || "left"}, V: {activeNode.constraints?.vertical || "top"}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-[11px] font-mono bg-[#f4f4f5] p-2 rounded border border-[#e4e4e7]">
+                  <span>Bounding Box: {selectedNodes.length} items</span>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Auto Layout Details */}
+            {activeNode?.type === "autoLayout" && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                  Auto Layout
+                </div>
+                <div className="space-y-1 font-mono text-[11px] bg-[#f4f4f5] p-2 rounded-md border border-[#e4e4e7]">
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Direction:</span>
+                    <span className="font-semibold">{activeNode.layout?.direction || "vertical"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Gap:</span>
+                    <span>{activeNode.layout?.gap ?? 12}px</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Align:</span>
+                    <span>{activeNode.layout?.align || "stretch"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Justify:</span>
+                    <span>{activeNode.layout?.justify || "start"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Wrap:</span>
+                    <span>{activeNode.layout?.wrap ? "true" : "false"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4. Appearance */}
+            {activeNode && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                  Appearance
+                </div>
+                <div className="space-y-1 font-mono text-[11px] bg-[#f4f4f5] p-2 rounded-md border border-[#e4e4e7]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#71717a]">Fill:</span>
+                    <div className="flex items-center gap-1.5">
+                      {activeNode.style?.fill && activeNode.style.fill !== "transparent" && (
+                        <span className="w-3 h-3 rounded-full border border-[#d4d4d8]" style={{ background: activeNode.style.fill }} />
+                      )}
+                      <span>{activeNode.style?.fill || "none"}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#71717a]">Stroke:</span>
+                    <span>{activeNode.style?.stroke ? `${activeNode.style.strokeWidth || 1}px ${activeNode.style.stroke}` : "none"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Radius:</span>
+                    <span>{activeNode.style?.radius || 0}px</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Opacity:</span>
+                    <span>{activeNode.style?.opacity ?? 100}%</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 5. Typography */}
+            {activeNode && (activeNode.type === "text" || activeNode.type === "button" || activeNode.type === "input") && (
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                  Typography
+                </div>
+                <div className="space-y-1 font-mono text-[11px] bg-[#f4f4f5] p-2 rounded-md border border-[#e4e4e7]">
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Font:</span>
+                    <span>{activeNode.style?.fontFamily || "inherit"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Size & Weight:</span>
+                    <span>{activeNode.style?.fontSize || 14}px / {activeNode.style?.fontWeight || 400}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#71717a]">Color:</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2.5 h-2.5 rounded-full border" style={{ background: activeNode.style?.color || "#18181b" }} />
+                      <span>{activeNode.style?.color || "#18181b"}</span>
+                    </div>
+                  </div>
+                  {activeNode.style?.lineHeight && (
+                    <div className="flex justify-between">
+                      <span className="text-[#71717a]">Line Height:</span>
+                      <span>{activeNode.style.lineHeight}</span>
+                    </div>
+                  )}
+                  {activeNode.style?.letterSpacing && (
+                    <div className="flex justify-between">
+                      <span className="text-[#71717a]">Tracking:</span>
+                      <span>{activeNode.style.letterSpacing}px</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 6. Code & Snippet Generators */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                <span>Generated CSS</span>
+              </div>
+              <pre
+                data-testid="inspect-css-preview"
+                className="max-h-40 overflow-auto rounded bg-[#18181b] p-2 text-[10px] font-mono text-[#f4f4f5] leading-relaxed select-all"
+              >
+                {activeNode ? generateNodeCss(activeNode, Boolean(activeNode.parentId)) : "/* Multiple elements selected */"}
+              </pre>
+              <div className="grid grid-cols-2 gap-1.5 mt-2">
+                <button
+                  type="button"
+                  data-testid="copy-css-btn"
+                  onClick={() => {
+                    const css = activeNode
+                      ? generateNodeCss(activeNode, Boolean(activeNode.parentId))
+                      : selectedNodes.map((n) => generateNodeCss(n, Boolean(n.parentId))).join("\n\n");
+                    navigator.clipboard?.writeText(css);
+                    toast.success("Copied CSS to clipboard");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Copy size={12} /> Copy CSS
+                </button>
+                <button
+                  type="button"
+                  data-testid="copy-json-btn"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(JSON.stringify(activeNode || selectedNodes, null, 2));
+                    toast.success("Copied JSON to clipboard");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <FileCode size={12} /> Copy JSON
+                </button>
+                <button
+                  type="button"
+                  data-testid="copy-tailwind-btn"
+                  onClick={() => {
+                    const tw = activeNode
+                      ? generateTailwindClasses(activeNode)
+                      : selectedNodes.map((n) => generateTailwindClasses(n)).join(" ");
+                    navigator.clipboard?.writeText(tw);
+                    toast.success("Copied Tailwind classes");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Terminal size={12} /> Tailwind
+                </button>
+                <button
+                  type="button"
+                  data-testid="copy-tokens-btn"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(generateTokensCss(designTokens));
+                    toast.success("Copied design tokens CSS");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Code2 size={12} /> Tokens
+                </button>
+              </div>
+            </div>
+
+            {/* 7. Export Selection */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Export Selection
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  data-testid="export-selection-svg-btn"
+                  onClick={() => {
+                    const targetNodes = selectedNodes.length > 0 ? selectedNodes : activeNode ? [activeNode] : [];
+                    const svg = generateNodeSvg(targetNodes, activeFrame?.nodes || []);
+                    const name = activeNode ? activeNode.name || activeNode.type : "selection";
+                    downloadSvg(svg, `${name.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.svg`);
+                    toast.success("Exported SVG");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Download size={12} /> Export SVG
+                </button>
+                <button
+                  type="button"
+                  data-testid="export-selection-png-btn"
+                  onClick={async () => {
+                    const targetNodes = selectedNodes.length > 0 ? selectedNodes : activeNode ? [activeNode] : [];
+                    const svg = generateNodeSvg(targetNodes, activeFrame?.nodes || []);
+                    const name = activeNode ? activeNode.name || activeNode.type : "selection";
+                    const w = activeNode?.width || 200;
+                    const h = activeNode?.height || 100;
+                    await downloadPngFromSvg(svg, w, h, `${name.toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.png`);
+                    toast.success("Exported PNG");
+                  }}
+                  className="flex h-7 items-center justify-center gap-1 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Download size={12} /> Export PNG
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Screen Frame Level Inspection */
+          <div className="p-3 space-y-4 text-xs">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Screen Overview
+              </div>
+              <div className="space-y-1 font-mono text-[11px] bg-[#f4f4f5] p-2 rounded-md border border-[#e4e4e7]">
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Name:</span>
+                  <span className="font-semibold select-all">{activeFrame?.name || "Screen"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">ID:</span>
+                  <span className="select-all">{activeFrame?.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Preset:</span>
+                  <span>{activeFrame?.preset || "iPhone 15"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Size:</span>
+                  <span>{activeFrame?.width || 390} × {activeFrame?.height || 844} px</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Safe Area:</span>
+                  <span>T: {activeFrame?.safeArea?.top || 0} / B: {activeFrame?.safeArea?.bottom || 0} px</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#71717a]">Nodes:</span>
+                  <span>{(activeFrame?.nodes || []).length} element(s)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Screen Export Options */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Export Screen
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  data-testid="inspect-export-frame-svg-btn"
+                  onClick={() => {
+                    if (!activeFrame) return;
+                    const svg = generateFrameSvg(activeFrame);
+                    downloadSvg(svg, `${activeFrame.name.toLowerCase().replace(/\s+/g, "_")}.svg`);
+                    toast.success("Exported Screen SVG");
+                  }}
+                  className="flex h-8 items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Download size={13} /> Frame SVG
+                </button>
+                <button
+                  type="button"
+                  data-testid="inspect-export-frame-png-btn"
+                  onClick={async () => {
+                    if (!activeFrame) return;
+                    const svg = generateFrameSvg(activeFrame);
+                    await downloadPngFromSvg(svg, activeFrame.width || 390, activeFrame.height || 844, `${activeFrame.name.toLowerCase().replace(/\s+/g, "_")}.png`);
+                    toast.success("Exported Screen PNG");
+                  }}
+                  className="flex h-8 items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Download size={13} /> Frame PNG
+                </button>
+              </div>
+            </div>
+
+            {/* Design Tokens & Prototype Package */}
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-[#71717a] mb-1.5">
+                Developer Package
+              </div>
+              <div className="space-y-1.5">
+                <button
+                  type="button"
+                  data-testid="inspect-export-tokens-css-btn"
+                  onClick={() => {
+                    const css = generateTokensCss(designTokens);
+                    downloadFile(css, "tokens.css", "text/css");
+                    toast.success("Exported tokens.css");
+                  }}
+                  className="flex h-8 w-full items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <Code2 size={13} /> Export Design Tokens (CSS)
+                </button>
+                <button
+                  type="button"
+                  data-testid="inspect-export-tokens-json-btn"
+                  onClick={() => {
+                    downloadFile(JSON.stringify(designTokens, null, 2), "tokens.json", "application/json");
+                    toast.success("Exported tokens.json");
+                  }}
+                  className="flex h-8 w-full items-center justify-center gap-1.5 rounded border border-[#d4d4d8] bg-white text-xs font-medium text-[#18181b] hover:bg-[#f4f4f5]"
+                >
+                  <FileCode size={13} /> Export Design Tokens (JSON)
+                </button>
+                <button
+                  type="button"
+                  data-testid="inspect-export-prototype-zip-btn"
+                  onClick={() => {
+                    if (onExportPrototypeZip) {
+                      onExportPrototypeZip();
+                    } else if (activeFrame) {
+                      window.open(`/api/projects/${activeFrame.id}/export/prototype.zip`, "_blank");
+                    }
+                  }}
+                  className="flex h-8 w-full items-center justify-center gap-1.5 rounded bg-[#18181b] text-xs font-medium text-white hover:bg-[#27272a]"
+                >
+                  <Download size={13} /> Download Prototype Package (.zip)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+    );
+  }
 
   // If selectedNodes is provided and has multiple elements, render Multi-selection mode
   const isMulti = selectedNodes && selectedNodes.length > 1;
@@ -313,8 +754,6 @@ export default function RightPropertiesPanel({
   }
 
   // Single node selected or fallback
-  const activeNode = node || (selectedNodes.length === 1 ? selectedNodes[0] : null);
-
   if (!activeNode) {
     const currentPresetDef = getFramePreset(activeFrame?.preset);
     const currentPreset = currentPresetDef ? currentPresetDef.name : (activeFrame?.preset || "iPhone 15");

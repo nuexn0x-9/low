@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-09-12 (Phase 10: Export, Handoff, and Developer Mode)
+
+### Added
+- **Developer Inspect Mode (`Design | Prototype | Inspect`)**:
+  - Read-only canvas inspection mode preventing accidental element drag or resize while allowing deep node exploration.
+  - Dedicated Developer Handoff Panel displaying node identity, metrics/layout (`X`, `Y`, `W`, `H`, parent sizing, constraints), auto layout properties, appearance (`fill`, `stroke`, `radius`, `opacity`), and typography attributes.
+- **CSS, JSON, & Tailwind Utility Generators**:
+  - Live generated CSS code preview (`.low-stack`, `.low-button`, `.low-card`, etc.) with 1-click clipboard copy (`copy-css-btn`).
+  - 1-click JSON snippet copy for selected node or multi-selection (`copy-json-btn`).
+  - Tailwind CSS utility class generator for selected nodes (`copy-tailwind-btn`).
+  - Design tokens CSS custom properties exporter (`copy-tokens-btn`).
+- **Asset Export Engine (SVG & PNG)**:
+  - Export active frame or selection to SVG and PNG directly in the browser with zero external heavy dependencies.
+  - Automatic filtering to exclude hidden nodes and optional safe area guidelines.
+  - Toolbar quick action buttons for instant SVG and PNG frame export.
+- **Design Tokens Exporter**:
+  - Download design tokens as standard JSON (`tokens.json`) or CSS variables (`tokens.css`).
+  - Backend API endpoints: `GET /api/projects/{id}/export/tokens.json` and `GET /api/projects/{id}/export/tokens.css`.
+- **Standalone Offline Prototype Package (`prototype.zip`)**:
+  - Full project bundle export including an interactive `index.html` prototype viewer, `low-prototype.json`, and instructions.
+  - Mobile frame emulator supporting clickable prototype navigation, overlays, back, and restart completely offline without server dependencies.
+  - Backend endpoint: `GET /api/projects/{id}/export/prototype.zip`.
+- **Universal Agent Connect API v2.4.0**:
+  - Bumped schema to `2.4.0` with 6 new atomic developer and handoff actions:
+    - `export_project_low_json`: Exports complete document in `.low.json` schema.
+    - `export_design_tokens`: Exports tokens in JSON, CSS, or both.
+    - `export_frame_svg`: Renders frame markup into standalone SVG vector string.
+    - `get_inspect_data`: Returns structured developer inspection payload for any node.
+    - `get_node_css`: Generates standard CSS block for any node.
+    - `get_prototype_package`: Returns offline package metadata.
+
 ## [1.3.0] - 2026-09-12 (Phase 9: Responsive Layout & Auto Layout)
 
 ### Added

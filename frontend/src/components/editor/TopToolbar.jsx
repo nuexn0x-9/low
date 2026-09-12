@@ -62,6 +62,8 @@ export default function TopToolbar({
   activeFrame,
   onChangeFramePreset,
   onToggleSafeArea,
+  onExportFrameSvg,
+  onExportFramePng,
 }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#e4e4e7] bg-white px-3">
@@ -156,6 +158,31 @@ export default function TopToolbar({
             <HelpCircle size={15} />
           </button>
         )}
+        <div className="flex items-center gap-1">
+          {onExportFrameSvg && (
+            <button
+              type="button"
+              data-testid="export-frame-svg-btn"
+              onClick={onExportFrameSvg}
+              title="Export Screen as SVG"
+              className="hidden h-7 items-center gap-1 rounded border border-[#d4d4d8] bg-white px-2 text-xs font-medium text-[#3f3f46] hover:bg-[#f4f4f5] sm:flex"
+            >
+              SVG
+            </button>
+          )}
+          {onExportFramePng && (
+            <button
+              type="button"
+              data-testid="export-frame-png-btn"
+              onClick={onExportFramePng}
+              title="Export Screen as PNG"
+              className="hidden h-7 items-center gap-1 rounded border border-[#d4d4d8] bg-white px-2 text-xs font-medium text-[#3f3f46] hover:bg-[#f4f4f5] sm:flex"
+            >
+              PNG
+            </button>
+          )}
+        </div>
+
         <Segmented
           testid="mode-switch"
           value={mode}
@@ -163,6 +190,7 @@ export default function TopToolbar({
           options={[
             { value: "design", label: "Design" },
             { value: "prototype", label: "Prototype" },
+            { value: "inspect", label: "Inspect" },
           ]}
         />
         <Button variant="primary" data-testid="preview-btn" onClick={onPreview}>

@@ -101,6 +101,12 @@ ACTION_SCOPES = {
     "update_frame_preset": ["edit_screen", "write_document"],
     "update_safe_area": ["edit_screen", "write_document"],
     "create_scroll_area": ["edit_screen", "write_document"],
+    "export_project_low_json": ["read_document"],
+    "export_design_tokens": ["read_document"],
+    "export_frame_svg": ["read_document"],
+    "get_inspect_data": ["read_document"],
+    "get_node_css": ["read_document"],
+    "get_prototype_package": ["read_document"],
 }
 
 
@@ -1110,12 +1116,130 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         target_frame["nodes"].append(scroll_node)
         return {"ok": True, "scrollAreaId": scroll_id, "children": scroll_node["children"]}, doc
 
+    if action == "export_project_low_json":
+        return {"ok": True, "lowVersion": "1.0.0", "document": {"frames": doc}}, doc
+
+    if action == "export_design_tokens":
+        tokens = params.get("tokens") or {}
+        return {"ok": True, "designTokens": tokens}, doc
+
+    if action == "export_frame_svg":
+        screen_id = params.get("screenId")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        w = target_frame.get("width", 390)
+        h = target_frame.get("height", 844)
+        svg_parts = [
+            f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" xmlns="http://www.w3.org/2000/svg">',
+            f'<rect width="{w}" height="{h}" fill="#ffffff" />',
+        ]
+        for n in target_frame.get("nodes", []):
+            if not n.get("hidden"):
+                fill = n.get("style", {}).get("fill", "#eeeeee")
+                svg_parts.append(
+                    f'<rect id="{n.get("id")}" x="{n.get("x",0)}" y="{n.get("y",0)}" width="{n.get("width",100)}" height="{n.get("height",40)}" fill="{fill}" />'
+                )
+        svg_parts.append("</svg>")
+        return {"ok": True, "screenId": screen_id, "svg": "\n".join(svg_parts)}, doc
+
+    if action == "get_inspect_data":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found")
+        return {
+            "ok": True,
+            "inspect": {
+                "id": node.get("id"),
+                "name": node.get("name"),
+                "type": node.get("type"),
+                "layout": {
+                    "x": node.get("x", 0),
+                    "y": node.get("y", 0),
+                    "width": node.get("width", 100),
+                    "height": node.get("height", 40),
+                    "parentId": node.get("parentId"),
+                    "layoutSizing": node.get("layoutSizing"),
+                },
+                "appearance": {
+                    "fill": node.get("style", {}).get("fill"),
+                    "stroke": node.get("style", {}).get("stroke"),
+                    "radius": node.get("style", {}).get("radius"),
+                    "opacity": node.get("style", {}).get("opacity"),
+                },
+                "typography": (
+                    {
+                        "fontFamily": node.get("style", {}).get("fontFamily"),
+                        "fontSize": node.get("style", {}).get("fontSize"),
+                        "fontWeight": node.get("style", {}).get("fontWeight"),
+                        "color": node.get("style", {}).get("color"),
+                    }
+                    if node.get("type") in ("text", "button", "input")
+                    else None
+                ),
+                "autoLayout": node.get("layout"),
+                "constraints": node.get("constraints"),
+                "prototype": node.get("prototype"),
+            },
+        }, doc
+
+    if action == "get_node_css":
+        screen_id = params.get("screenId")
+        node_id = params.get("nodeId")
+        target_frame = next((f for f in doc if f.get("id") == screen_id), None)
+        if not target_frame:
+            raise ValueError(f"screen '{screen_id}' not found")
+        node = next((n for n in target_frame.get("nodes", []) if n.get("id") == node_id), None)
+        if not node:
+            raise ValueError(f"node '{node_id}' not found")
+        s = node.get("style", {})
+        css_lines = [
+            f".low-{node.get('type','element')} {{",
+            "  position: absolute;",
+            f"  left: {node.get('x',0)}px;",
+            f"  top: {node.get('y',0)}px;",
+            f"  width: {node.get('width',100)}px;",
+            f"  height: {node.get('height',40)}px;",
+        ]
+        if s.get("fill"):
+            css_lines.append(f"  background: {s['fill']};")
+        if s.get("stroke"):
+            css_lines.append(f"  border: {s.get('strokeWidth',1)}px solid {s['stroke']};")
+        if s.get("radius"):
+            css_lines.append(f"  border-radius: {s['radius']}px;")
+        if s.get("color"):
+            css_lines.append(f"  color: {s['color']};")
+        if s.get("fontSize"):
+            css_lines.append(f"  font-size: {s['fontSize']}px;")
+        if s.get("fontWeight"):
+            css_lines.append(f"  font-weight: {s['fontWeight']};")
+        css_lines.append("}")
+        return {"ok": True, "nodeId": node_id, "css": "\n".join(css_lines)}, doc
+
+    if action == "get_prototype_package":
+        total_screens = len(doc)
+        total_nodes = sum(len(f.get("nodes", [])) for f in doc)
+        return {
+            "ok": True,
+            "package": {
+                "format": "prototype.zip",
+                "screensCount": total_screens,
+                "nodesCount": total_nodes,
+                "viewer": "index.html",
+            },
+        }, doc
+
     raise ValueError(f"unknown action: {action}")
 
 
 AGENT_SCHEMA = {
     "name": "LOW Universal Agent Connect API",
-    "version": "2.3.0",
+    "version": "2.4.0",
     "description": "Read and safely modify a LOW mobile UI/UX design. All mutations are atomic, scoped, and leave an audit log.",
     "auth": {"type": "header", "header": "X-LOW-Token", "note": "Token returned once when session is created. Required for POST /actions."},
     "scopes": ALL_SCOPES,
@@ -1159,6 +1283,12 @@ AGENT_SCHEMA = {
         {"action": "update_frame_preset", "scope": "edit_screen", "params": {"screenId": "string", "preset": "string", "width": "optional number", "height": "optional number", "applyConstraints": "optional boolean"}},
         {"action": "update_safe_area", "scope": "edit_screen", "params": {"screenId": "string", "safeArea": "object"}},
         {"action": "create_scroll_area", "scope": "edit_screen", "params": {"screenId": "string", "nodeIds": "optional array", "direction": "vertical|horizontal|both", "contentHeight": "optional number", "contentWidth": "optional number", "x": "optional number", "y": "optional number", "width": "optional number", "height": "optional number"}},
+        {"action": "export_project_low_json", "scope": "read_document", "params": {}, "returns": "full document JSON"},
+        {"action": "export_design_tokens", "scope": "read_document", "params": {"tokens": "optional object"}, "returns": "design tokens object and css"},
+        {"action": "export_frame_svg", "scope": "read_document", "params": {"screenId": "string"}, "returns": "SVG string of frame"},
+        {"action": "get_inspect_data", "scope": "read_document", "params": {"screenId": "string", "nodeId": "string"}, "returns": "identity, layout, appearance, typography, autoLayout, constraints"},
+        {"action": "get_node_css", "scope": "read_document", "params": {"screenId": "string", "nodeId": "string"}, "returns": "CSS rule snippet"},
+        {"action": "get_prototype_package", "scope": "read_document", "params": {}, "returns": "prototype package metadata"},
         {"action": "link_prototype", "scope": "edit_screen", "params": {"screenId": "string", "elementId": "string", "target": "screenId", "trigger": "tap", "action": "navigate", "transition": "slide"}},
         {"action": "create_component", "scope": "manage_components", "params": {"name": "string", "node": "object", "category": "optional string"}},
         {"action": "update_component", "scope": "manage_components", "params": {"componentId": "string", "patch": "object"}},
