@@ -234,6 +234,11 @@ async def get_project_thumbnail(
     project_id: str,
     db: AsyncSession = Depends(get_db),
 ):
+    proj_stmt = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    proj_res = await db.execute(proj_stmt)
+    if not proj_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Project not found")
+
     stmt = select(Document.content_json).where(Document.project_id == project_id)
     res = await db.execute(stmt)
     content_raw = res.scalar_one_or_none()
@@ -368,9 +373,14 @@ DEFAULT_DESIGN_TOKENS = {
 @router.get("/{project_id}/design-tokens")
 async def get_project_design_tokens(
     project_id: str,
+    user: User = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    stmt = select(Project).where(
+        Project.id == project_id,
+        Project.owner_id == user.id,
+        Project.deleted_at.is_(None),
+    )
     res = await db.execute(stmt)
     proj = res.scalar_one_or_none()
     if not proj:
@@ -394,9 +404,14 @@ async def get_project_design_tokens(
 async def update_project_design_tokens(
     project_id: str,
     payload: dict,
+    user: User = Depends(get_current_user_optional),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Project).where(Project.id == project_id, Project.deleted_at.is_(None))
+    stmt = select(Project).where(
+        Project.id == project_id,
+        Project.owner_id == user.id,
+        Project.deleted_at.is_(None),
+    )
     res = await db.execute(stmt)
     proj = res.scalar_one_or_none()
     if not proj:

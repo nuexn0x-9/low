@@ -455,11 +455,12 @@ export default function EditorShell() {
           width: newW,
           height: newH,
           safeArea: {
-            top: preset.safeArea?.top ?? (f.safeArea?.top || 47),
+            top: preset.safeArea?.top ?? (f.safeArea?.top || 44),
             bottom: preset.safeArea?.bottom ?? (f.safeArea?.bottom || 34),
             left: preset.safeArea?.left ?? (f.safeArea?.left || 0),
             right: preset.safeArea?.right ?? (f.safeArea?.right || 0),
-            visible: f.safeArea?.visible !== undefined ? f.safeArea.visible : true,
+            // Reset visible to true when switching presets — intentional preset change
+            visible: true,
           },
           nodes: updatedNodes,
         };
@@ -474,9 +475,10 @@ export default function EditorShell() {
         if (f.id !== fid) return f;
         return {
           ...f,
-          preset: "custom",
+          preset: "Custom Size",
           width: Math.max(100, width),
           height: Math.max(100, height),
+          // preserve existing safeArea; custom size has no built-in insets
         };
       })
     );
@@ -489,7 +491,7 @@ export default function EditorShell() {
         return {
           ...f,
           safeArea: {
-            ...(f.safeArea || { top: 47, bottom: 34, left: 0, right: 0, visible: true }),
+            ...(f.safeArea || { top: 44, bottom: 34, left: 0, right: 0, visible: true }),
             ...safeAreaPatch,
           },
         };
@@ -1021,7 +1023,7 @@ export default function EditorShell() {
       return;
     }
     const svgStr = generateFrameSvg(activeF, {
-      includeGuides: false,
+      includeSafeArea: false,
       components: componentsRef.current,
     });
     const filename = `${activeF.name.replace(/\s+/g, "_").toLowerCase() || "screen"}.svg`;
@@ -1036,7 +1038,7 @@ export default function EditorShell() {
       return;
     }
     const svgStr = generateFrameSvg(activeF, {
-      includeGuides: false,
+      includeSafeArea: false,
       components: componentsRef.current,
     });
     const filename = `${activeF.name.replace(/\s+/g, "_").toLowerCase() || "screen"}.png`;

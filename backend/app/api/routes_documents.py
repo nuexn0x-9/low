@@ -27,6 +27,16 @@ async def _get_project_or_404(project_id: str, user: User, db: AsyncSession) -> 
     res = await db.execute(stmt)
     project = res.scalar_one_or_none()
     if not project:
+        # Check if project exists but was soft-deleted
+        del_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.owner_id == user.id,
+            Project.deleted_at.is_not(None),
+        )
+        del_res = await db.execute(del_stmt)
+        if del_res.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Project not found")
+
         from app.core.config import settings
         if settings.ALLOW_DEV_LOCAL_USER:
             project = Project(

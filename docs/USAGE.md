@@ -60,9 +60,9 @@
   - Set direction (`horizontal` or `vertical`), gap, padding, align, and justify.
   - Set child sizing to `fixed` (px), `fill` (container), or `hug` (contents).
 - **Responsive Constraints & Presets**:
-  - Horizontal constraints (`left`, `right`, `left-right`, `center`, `scale`).
-  - Screen presets: `iPhone 15`, `iPhone SE`, `Android Compact`, `Android Large`, or custom size.
-  - Safe area inset guides for notch and home indicator bars.
+  - Horizontal constraints (`left`, `right`, `left-right`, `center`, `scale`) and vertical constraints.
+  - Screen presets: `iPhone 15`, `iPhone SE`, `Android Compact`, `Android Large`, or custom dimensions (`Custom Size`).
+  - Safe area inset guides (`top`, `bottom`, `left`, `right`) with visual boundary overlay in both editor canvas and interactive prototype preview. Quick toggle available directly in the top toolbar.
 
 ---
 

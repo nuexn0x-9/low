@@ -271,7 +271,7 @@ def normalize_frame(raw: Dict[str, Any], index: int) -> Dict[str, Any]:
         except (TypeError, ValueError):
             pass
     if "preset" in raw and raw["preset"]:
-        frame["preset"] = str(raw["preset"]).lower()
+        frame["preset"] = str(raw["preset"]).strip()
 
     if "safeArea" in raw and isinstance(raw["safeArea"], dict):
         sa = raw["safeArea"]

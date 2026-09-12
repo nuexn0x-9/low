@@ -239,10 +239,10 @@ export function normalizeProject(p) {
 
   const frames = rawFrames.map((f) => {
     const presetKey = f.preset || "iPhone 15";
-    const presetDef = FRAME_PRESETS[presetKey] || FRAME_PRESETS["iPhone 15"];
+    const presetDef = getFramePreset(presetKey);
     return {
       ...f,
-      preset: presetKey,
+      preset: presetDef.name,
       width: f.width || presetDef.width,
       height: f.height || presetDef.height,
       safeArea: f.safeArea || { ...presetDef.safeArea },

@@ -122,7 +122,7 @@ export default function TopToolbar({
             <select
               data-testid="toolbar-frame-preset-select"
               value={activeFrame.preset || "iPhone 15"}
-              onChange={(e) => onChangeFramePreset(activeFrame.id, e.target.value)}
+              onChange={(e) => onChangeFramePreset(e.target.value)}
               className="h-7 rounded border border-[#d4d4d8] bg-white px-2 text-xs font-medium text-[#18181b] outline-none hover:border-[#18181b] focus:border-[#18181b]"
             >
               {Object.keys(FRAME_PRESETS).map((pKey) => (
@@ -139,7 +139,7 @@ export default function TopToolbar({
                 onClick={onToggleSafeArea}
                 className={`flex h-7 items-center rounded border px-2 text-xs font-medium transition-colors ${
                   activeFrame.safeArea?.visible !== false
-                    ? "border-[#2563eb] bg-[#2563eb]/10 text-[#2563eb]"
+                    ? "border-zinc-900 bg-zinc-900 text-white"
                     : "border-[#d4d4d8] bg-white text-[#71717a] hover:bg-[#f4f4f5]"
                 }`}
               >

@@ -16,7 +16,7 @@ export default function CanvasArea({
   beginTransaction,
   endTransaction,
   onDropItem,
-  zoom,
+  zoom = 1,
   mode,
   snappingEnabled = true,
   components = [],
@@ -64,9 +64,11 @@ export default function CanvasArea({
     const THRESHOLD = 5;
     const newGuides = [];
 
-    // Frame targets
-    const vTargets = [0, FRAME.width / 2, FRAME.width];
-    const hTargets = [0, FRAME.height / 2, FRAME.height];
+    // Frame targets — use actual active frame dimensions, not global FRAME default
+    const frameW = activeFrame.width || FRAME.width;
+    const frameH = activeFrame.height || FRAME.height;
+    const vTargets = [0, frameW / 2, frameW];
+    const hTargets = [0, frameH / 2, frameH];
 
     // Sibling targets
     const siblings = (activeFrame.nodes || []).filter(
@@ -437,7 +439,7 @@ export default function CanvasArea({
                   }}
                   onDrop={(e) => handleDrop(e, frame)}
                   className={`relative overflow-hidden rounded-[14px] bg-white transition-shadow ${
-                    isActive ? "border-2 border-[#2563eb]" : "border border-[#d4d4d8]"
+                    isActive ? "border-2 border-[#18181b]" : "border border-[#d4d4d8]"
                   }`}
                   style={{ width: frameW, height: frameH }}
                 >
@@ -455,10 +457,10 @@ export default function CanvasArea({
                       {frame.safeArea.top > 0 && (
                         <div
                           data-testid={`safe-area-top-${frame.id}`}
-                          className="absolute left-0 right-0 border-b border-dashed border-[#2563eb]/40 bg-[#2563eb]/5"
+                          className="absolute left-0 right-0 border-b border-dashed border-zinc-400/40 bg-zinc-900/5"
                           style={{ top: 0, height: frame.safeArea.top }}
                         >
-                          <span className="absolute bottom-0.5 right-2 text-[9px] font-mono text-[#2563eb]/70">
+                          <span className="absolute bottom-0.5 right-2 text-[9px] font-mono text-zinc-500">
                             Safe Top {frame.safeArea.top}px
                           </span>
                         </div>
@@ -466,13 +468,27 @@ export default function CanvasArea({
                       {frame.safeArea.bottom > 0 && (
                         <div
                           data-testid={`safe-area-bottom-${frame.id}`}
-                          className="absolute left-0 right-0 border-t border-dashed border-[#2563eb]/40 bg-[#2563eb]/5"
+                          className="absolute left-0 right-0 border-t border-dashed border-zinc-400/40 bg-zinc-900/5"
                           style={{ bottom: 0, height: frame.safeArea.bottom }}
                         >
-                          <span className="absolute top-0.5 right-2 text-[9px] font-mono text-[#2563eb]/70">
+                          <span className="absolute top-0.5 right-2 text-[9px] font-mono text-zinc-500">
                             Safe Bottom {frame.safeArea.bottom}px
                           </span>
                         </div>
+                      )}
+                      {frame.safeArea.left > 0 && (
+                        <div
+                          data-testid={`safe-area-left-${frame.id}`}
+                          className="absolute top-0 bottom-0 border-r border-dashed border-zinc-400/40 bg-zinc-900/5"
+                          style={{ left: 0, width: frame.safeArea.left }}
+                        />
+                      )}
+                      {frame.safeArea.right > 0 && (
+                        <div
+                          data-testid={`safe-area-right-${frame.id}`}
+                          className="absolute top-0 bottom-0 border-l border-dashed border-zinc-400/40 bg-zinc-900/5"
+                          style={{ right: 0, width: frame.safeArea.right }}
+                        />
                       )}
                     </div>
                   )}

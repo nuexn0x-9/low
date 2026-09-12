@@ -140,14 +140,26 @@ export default function PreviewModal({ frames, startFrameId, onClose }) {
                 >
                   {frame.safeArea.top > 0 && (
                     <div
-                      className="absolute left-0 right-0 border-b border-dashed border-[#2563eb]/20"
+                      className="absolute left-0 right-0 border-b border-dashed border-zinc-400/30"
                       style={{ top: 0, height: frame.safeArea.top }}
                     />
                   )}
                   {frame.safeArea.bottom > 0 && (
                     <div
-                      className="absolute left-0 right-0 border-t border-dashed border-[#2563eb]/20"
+                      className="absolute left-0 right-0 border-t border-dashed border-zinc-400/30"
                       style={{ bottom: 0, height: frame.safeArea.bottom }}
+                    />
+                  )}
+                  {frame.safeArea.left > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-r border-dashed border-zinc-400/30"
+                      style={{ left: 0, width: frame.safeArea.left }}
+                    />
+                  )}
+                  {frame.safeArea.right > 0 && (
+                    <div
+                      className="absolute top-0 bottom-0 border-l border-dashed border-zinc-400/30"
+                      style={{ right: 0, width: frame.safeArea.right }}
                     />
                   )}
                 </div>

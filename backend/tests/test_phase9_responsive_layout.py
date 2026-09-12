@@ -70,7 +70,7 @@ def test_import_service_autolayout_and_scrollarea():
     assert is_valid is True
     assert len(frames) == 1
     f = frames[0]
-    assert f["preset"] == "iphone 15"
+    assert f["preset"] == "iPhone 15"
     assert f["safeArea"]["top"] == 44
     assert len(f["nodes"]) == 3
 

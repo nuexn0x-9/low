@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-09-12 (Post v0.1.0 Stabilization & Safe Area/Preview Patch)
+
+### Fixed
+- **Safe Area & Frame Presets**:
+  - Fixed top toolbar frame preset dropdown argument order (`onChangeFramePreset`), restoring ability to switch presets directly from toolbar.
+  - Added visual rendering for `left` and `right` safe area guidelines in both CanvasArea and PreviewModal.
+  - Aligned default fallback safe area top inset from `47px` to standard `44px` across all editor stores and preset switches.
+  - Automatically re-enable safe area guidelines (`visible: true`) upon intentional preset changes.
+  - Fixed custom dimensions editor to set preset to canonical `"Custom Size"` and retain existing safe area insets.
+  - Fixed case preservation in backend `normalize_frame` (no longer lowercasing preset keys, e.g. `iPhone 15`), resolving blank dropdowns on import.
+  - Updated `normalizeProject` in frontend storage to use case-insensitive `getFramePreset()` lookup.
+- **Canvas & Preview**:
+  - Fixed canvas dynamic snapping targets to use actual active frame dimensions instead of static fallback dimensions (390×844).
+  - Aligned active frame border styling to monochrome theme (`border-[#18181b]`).
+  - Standardized property panel callback parameters (`onChangeFramePreset`, `onChangeFrameDimensions`, `onUpdateSafeArea`).
+- **Export & Security**:
+  - Corrected SVG export parameter mapping from `includeGuides` to `includeSafeArea: false` to ensure clean asset exports without guidelines.
+  - Enforced ownership verification on design tokens retrieval and update endpoints (`GET/PUT /api/projects/{id}/design-tokens`).
+  - Added soft-deletion guard in document service (`_get_project_or_404`) and thumbnail generation to prevent access to soft-deleted documents.
+  - Fixed potential `zoom=undefined` NaN warning during initial canvas mount.
+
+---
+
 ## [1.4.0] - 2026-09-12 (Phase 10: Export, Handoff, and Developer Mode)
 
 ### Added

@@ -136,7 +136,7 @@ export default function RightPropertiesPanel({
       >
         <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#e4e4e7] px-3 bg-[#fafafa]">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[#18181b]">
-            <Code2 size={14} className="text-[#2563eb]" />
+            <Code2 size={14} className="text-zinc-900" />
             <span>Developer Inspect</span>
           </div>
           <span className="text-[10px] font-mono rounded bg-[#e4e4e7] px-1.5 py-0.5 text-[#3f3f46]">
@@ -173,7 +173,7 @@ export default function RightPropertiesPanel({
                 {activeNode?.parentId && (
                   <div className="flex justify-between">
                     <span className="text-[#71717a]">Parent:</span>
-                    <span className="select-all text-[#2563eb]">{activeNode.parentId}</span>
+                    <span className="select-all text-zinc-900 font-semibold">{activeNode.parentId}</span>
                   </div>
                 )}
               </div>
@@ -771,7 +771,7 @@ export default function RightPropertiesPanel({
             <select
               data-testid="frame-preset-select"
               value={currentPreset}
-              onChange={(e) => onChangeFramePreset && onChangeFramePreset(e.target.value, activeFrame?.id)}
+              onChange={(e) => onChangeFramePreset && onChangeFramePreset(e.target.value)}
               className="h-7 w-full rounded-md border border-[#d4d4d8] bg-white px-1.5 text-xs text-[#18181b] outline-none focus:border-[#18181b]"
             >
               {Object.keys(FRAME_PRESETS).map((pKey) => (
@@ -788,7 +788,7 @@ export default function RightPropertiesPanel({
               value={activeFrame?.width || 390}
               onChange={(w) => {
                 if (onChangeFrameDimensions && activeFrame) {
-                  onChangeFrameDimensions(activeFrame.id, w, activeFrame.height || 844);
+                  onChangeFrameDimensions(w, activeFrame.height || 844);
                 }
               }}
             />
@@ -798,7 +798,7 @@ export default function RightPropertiesPanel({
               value={activeFrame?.height || 844}
               onChange={(h) => {
                 if (onChangeFrameDimensions && activeFrame) {
-                  onChangeFrameDimensions(activeFrame.id, activeFrame.width || 390, h);
+                  onChangeFrameDimensions(activeFrame.width || 390, h);
                 }
               }}
             />
@@ -813,7 +813,7 @@ export default function RightPropertiesPanel({
               type="checkbox"
               data-testid="safe-area-visible-toggle"
               checked={sa.visible !== false}
-              onChange={(e) => onUpdateSafeArea && onUpdateSafeArea({ visible: e.target.checked }, activeFrame?.id)}
+              onChange={(e) => onUpdateSafeArea && onUpdateSafeArea({ visible: e.target.checked })}
               className="h-4 w-4 rounded border-[#d4d4d8] text-[#18181b] focus:ring-0"
             />
           </div>
@@ -823,14 +823,14 @@ export default function RightPropertiesPanel({
               testid="safe-area-top"
               suffix="px"
               value={sa.top || 0}
-              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ top: Math.max(0, v || 0) }, activeFrame?.id)}
+              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ top: Math.max(0, v || 0) })}
             />
             <NumberField
               label="Bottom"
               testid="safe-area-bottom"
               suffix="px"
               value={sa.bottom || 0}
-              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ bottom: Math.max(0, v || 0) }, activeFrame?.id)}
+              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ bottom: Math.max(0, v || 0) })}
             />
           </div>
           <div className="grid grid-cols-2 gap-1.5 mt-1.5">
@@ -839,14 +839,14 @@ export default function RightPropertiesPanel({
               testid="safe-area-left"
               suffix="px"
               value={sa.left || 0}
-              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ left: Math.max(0, v || 0) }, activeFrame?.id)}
+              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ left: Math.max(0, v || 0) })}
             />
             <NumberField
               label="Right"
               testid="safe-area-right"
               suffix="px"
               value={sa.right || 0}
-              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ right: Math.max(0, v || 0) }, activeFrame?.id)}
+              onChange={(v) => onUpdateSafeArea && onUpdateSafeArea({ right: Math.max(0, v || 0) })}
             />
           </div>
         </Group>
