@@ -4,15 +4,22 @@
 
 **Lightweight open-source UI/UX mobile design editor with AI Import and Universal Agent Connect.**
 
+[![GitHub Release](https://img.shields.io/badge/Release-v0.1.0-18181b.svg)](https://github.com/nuexn0x-9/low/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-black.svg)](LICENSE)
 [![CI Status](https://img.shields.io/badge/CI-Passing-zinc.svg)](.github/workflows/ci.yml)
+[![Docker](https://img.shields.io/badge/Docker-Compose_Ready-2496ed.svg)](docker-compose.yml)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-18181b.svg)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19.0+-18181b.svg)](https://react.dev)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL_Async-27272a.svg)](https://sqlite.org)
+[![Open Source](https://img.shields.io/badge/Open_Source-Self_Hosted-emerald.svg)](https://github.com/nuexn0x-9/low)
 
 *Self-hosted • Monochrome Minimalist • Open `.low.json` Format • Agent-Ready*
 
-[English](#overview) | [Bahasa Indonesia](#ringkasan-bahasa-indonesia) | [Documentation](docs/) | [Release Checklist](RELEASE_CHECKLIST.md)
+[English](#overview) | [Bahasa Indonesia](#ringkasan-bahasa-indonesia) | [Try with Docker (2 Mins)](#try-with-docker-compose-in-2-minutes) | [Documentation](docs/) | [Sample Projects](examples/)
+
+<br />
+
+<img src="docs/assets/screenshot-editor-design.png" alt="LOW Mobile Design Editor" width="880" style="border-radius: 8px; border: 1px solid #e4e4e7; box-shadow: 0 8px 30px rgba(0,0,0,0.08);" />
 
 </div>
 
@@ -24,6 +31,63 @@
 
 ### Ringkasan (Bahasa Indonesia)
 LOW adalah editor wireframe mobile open-source yang ringan dan dapat di-self-host. Berbeda dengan tools desain konvensional yang rumit dan tertutup, LOW fokus pada wireframing mobile dengan palet monokrom minimalis, format file terbuka `.low.json`, mesin **AI Import** untuk generate screen dari teks, dan protokol **Universal Agent Connect** yang memungkinkan agent AI eksternal mengontrol dan memanipulasi desain secara aman dengan token scoped, dry-run, dan fitur undo instan.
+
+---
+
+## Why LOW?
+
+Traditional cloud UI/UX design tools (Figma, Sketch, Adobe XD) have become heavy, proprietary walled gardens that lock user designs in opaque binary clouds and charge subscription fees for developer handoff.
+
+| Feature | Conventional Design Tools | LOW (Lowcode Oriented Wireframe) |
+|---|---|---|
+| **Hosting & Data Privacy** | Proprietary SaaS Cloud (Vendor Lock-in) | **100% Self-Hosted** (Docker / SQLite WAL) |
+| **File Format** | Binary / Closed Format | **Transparent `.low.json` Human-Readable Schema** |
+| **AI Agent Integration** | Limited / Proprietary Chatbots | **Universal Agent Connect (v2.4.0)** with 33 atomic actions |
+| **Handoff & Developer Mode**| Paid add-on / seat upsell | **Free Built-in CSS, Tailwind, & Token Generator** |
+| **Offline Prototype Export**| Requires paid web viewer | **Zero-Dependency `prototype.zip` (Offline HTML)** |
+| **Aesthetics** | Cluttered multi-color noise | **Disciplined Monochrome Minimalist Canvas** |
+
+---
+
+## Visual Showcase
+
+| Design Editor | Developer Inspect Mode |
+|---|---|
+| ![Design Editor](docs/assets/screenshot-editor-design.png) | ![Inspect Mode](docs/assets/screenshot-inspect-mode.png) |
+
+| AI Import Engine | Universal Agent Connect |
+|---|---|
+| ![AI Import Engine](docs/assets/screenshot-ai-import.png) | ![Agent Connect](docs/assets/screenshot-agent-connect.png) |
+
+<div align="center">
+  <img src="docs/assets/demo-low-editor.gif" alt="LOW Editor Interactive Demo" width="800" style="border-radius: 8px; border: 1px solid #e4e4e7;" />
+</div>
+
+---
+
+## AI Agent Ready
+
+LOW is engineered from the ground up for the agentic coding era. Through **Universal Agent Connect v2.4.0**, external AI agents (Cursor, Claude Desktop, Antigravity, Codex, Hermes) can connect over scoped HTTP tokens:
+- **33 Atomic Operations**: Create screens, nest auto layout, bind component instances, edit typography, query box-model metrics, and export SVG.
+- **Safety First**: Granular scopes (`read_document`, `write_document`, `auto_layout`, `export_assets`, etc.).
+- **Simulation**: Support for `dryRun: true` allows agents to preview outcomes without committing mutations.
+- **Atomic Batching**: Execute up to 25 operations in a single atomic transaction.
+- **Instant Rollback**: 1-click audit trail snapshot undo in the web UI.
+
+---
+
+## Sample Projects (`examples/`)
+
+Pre-built, production-quality `.low.json` projects are included in [`examples/`](examples/) and can be imported directly into LOW:
+
+1. **[Fintech Secure Login (`examples/fintech-login.low.json`)](examples/fintech-login.low.json)**:
+   - 2-screen mobile flow with Splash, Phone authentication, design tokens, and prototype tap navigation.
+2. **[3-Screen Onboarding Flow (`examples/onboarding-flow.low.json`)](examples/onboarding-flow.low.json)**:
+   - Guided onboarding carousel with step indicator dots, skip links, and interactive slide transitions.
+3. **[Marketplace Home (`examples/marketplace-home.low.json`)](examples/marketplace-home.low.json)**:
+   - Product catalog with search bar, promo card, responsive product grid, and reusable bottom navigation.
+4. **[Agent Generated Flow (`examples/agent-generated-flow.low.json`)](examples/agent-generated-flow.low.json)**:
+   - Autonomous system overview screen with auto layout stacks, sizing constraints, and metric labels.
 
 ---
 
@@ -96,13 +160,9 @@ sequenceDiagram
 
 ---
 
-## Quick Start
+## Try with Docker Compose in 2 Minutes
 
-### 1-Click Launch on Windows
-On Windows, you can simply double-click **`run.bat`** in the root directory (or run `run.bat` in terminal). It will automatically configure `.env`, seed the database, launch both backend and frontend, and open [http://localhost:3000](http://localhost:3000).
-
-### With Docker Compose (Recommended for Production)
-The fastest way to launch LOW on Linux, macOS, or a VPS:
+The fastest way to launch LOW on Linux, macOS, or Windows/VPS:
 
 ```bash
 # 1. Clone repository

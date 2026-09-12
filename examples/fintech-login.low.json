@@ -1,0 +1,315 @@
+{
+  "lowVersion": "1.0.0",
+  "document": {
+    "id": "proj_fintech_login",
+    "name": "Fintech Secure Login",
+    "designTokens": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#18181b",
+        "muted": "#71717a",
+        "border": "#d4d4d8",
+        "surface": "#f4f4f5",
+        "primary": "#18181b",
+        "secondary": "#f4f4f5"
+      },
+      "radius": {
+        "none": 0,
+        "sm": 4,
+        "md": 8,
+        "lg": 12,
+        "xl": 16,
+        "full": 9999
+      },
+      "spacing": {
+        "xs": 4,
+        "sm": 8,
+        "md": 16,
+        "lg": 24,
+        "xl": 32
+      }
+    },
+    "components": [
+      {
+        "id": "comp_primary_btn",
+        "name": "Primary Button",
+        "category": "buttons",
+        "masterNode": {
+          "type": "button",
+          "name": "Primary Button",
+          "width": 342,
+          "height": 48,
+          "text": "Continue",
+          "style": {
+            "fill": "#18181b",
+            "stroke": "#000000",
+            "strokeWidth": 1,
+            "radius": 10,
+            "color": "#ffffff",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "align": "center",
+            "opacity": 100
+          }
+        }
+      },
+      {
+        "id": "comp_bottom_nav",
+        "name": "Bottom Navigation Bar",
+        "category": "navigation",
+        "masterNode": {
+          "type": "bottomnav",
+          "name": "Bottom Nav",
+          "width": 390,
+          "height": 64,
+          "text": "",
+          "style": {
+            "fill": "#ffffff",
+            "stroke": "#e4e4e7",
+            "strokeWidth": 1,
+            "opacity": 100
+          }
+        }
+      }
+    ],
+    "frames": [
+      {
+        "id": "frame_splash",
+        "name": "Welcome",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "fn_logo_card",
+            "type": "rectangle",
+            "name": "Logo Card",
+            "x": 155,
+            "y": 140,
+            "width": 80,
+            "height": 80,
+            "style": {
+              "fill": "#18181b",
+              "radius": 20,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_brand_title",
+            "type": "text",
+            "name": "Brand Title",
+            "x": 24,
+            "y": 240,
+            "width": 342,
+            "height": 36,
+            "text": "Apex Capital",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 26,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_brand_sub",
+            "type": "text",
+            "name": "Brand Subtitle",
+            "x": 24,
+            "y": 284,
+            "width": 342,
+            "height": 22,
+            "text": "Private wealth and mobile portfolio",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_start_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Sign In Button",
+            "x": 24,
+            "y": 680,
+            "width": 342,
+            "height": 50,
+            "text": "Sign In to Portfolio",
+            "style": {
+              "fill": "#18181b",
+              "radius": 12,
+              "color": "#ffffff",
+              "fontSize": 15,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Sign In"
+            }
+          },
+          {
+            "id": "fn_create_link",
+            "type": "link",
+            "name": "Create Account Link",
+            "x": 24,
+            "y": 744,
+            "width": 342,
+            "height": 20,
+            "text": "Don't have an account? Open today",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 13,
+              "fontWeight": 500,
+              "align": "center",
+              "opacity": 100
+            }
+          }
+        ]
+      },
+      {
+        "id": "frame_auth",
+        "name": "Sign In",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "fn_back_link",
+            "type": "link",
+            "name": "Back Navigation",
+            "x": 24,
+            "y": 56,
+            "width": 80,
+            "height": 24,
+            "text": "\u2190 Back",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 14,
+              "fontWeight": 500,
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "back"
+            }
+          },
+          {
+            "id": "fn_auth_title",
+            "type": "text",
+            "name": "Title",
+            "x": 24,
+            "y": 104,
+            "width": 342,
+            "height": 34,
+            "text": "Access Your Account",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 24,
+              "fontWeight": 700,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_auth_sub",
+            "type": "text",
+            "name": "Subtitle",
+            "x": 24,
+            "y": 142,
+            "width": 342,
+            "height": 22,
+            "text": "Enter your biometric ID or passcode",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_phone_inp",
+            "type": "input",
+            "name": "Phone / ID Input",
+            "x": 24,
+            "y": 200,
+            "width": 342,
+            "height": 48,
+            "text": "Registered Mobile (+62)",
+            "style": {
+              "fill": "#ffffff",
+              "stroke": "#d4d4d8",
+              "strokeWidth": 1,
+              "radius": 10,
+              "color": "#a1a1aa",
+              "fontSize": 14,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_pass_inp",
+            "type": "input",
+            "name": "PIN Input",
+            "x": 24,
+            "y": 260,
+            "width": 342,
+            "height": 48,
+            "text": "6-Digit Security PIN",
+            "style": {
+              "fill": "#ffffff",
+              "stroke": "#d4d4d8",
+              "strokeWidth": 1,
+              "radius": 10,
+              "color": "#a1a1aa",
+              "fontSize": 14,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "fn_login_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Authorize Button",
+            "x": 24,
+            "y": 340,
+            "width": 342,
+            "height": 50,
+            "text": "Authorize & Enter",
+            "style": {
+              "fill": "#18181b",
+              "radius": 12,
+              "color": "#ffffff",
+              "fontSize": 15,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Welcome"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -47,14 +47,49 @@
 
 ---
 
-## 4. Import & Export (`.low.json`)
+## 4. Layout, Workflow & Auto Layout
 
-- **Export**: Click the export icon in the left sidebar or toolbar to download the open `.low.json` file.
-- **Import**: Drag any valid `.low.json` document onto the canvas or upload via the Import tab.
+- **Multi-Selection & Marquee**:
+  - Drag over canvas empty space to marquee select multiple elements.
+  - Hold `Shift + Click` or `Ctrl/Cmd + Click` to add/remove elements from selection.
+  - Group elements with `Ctrl+G` / `Cmd+G` and ungroup with `Ctrl+Shift+G`.
+  - Alignment tools: Align Left, Center, Right, Top, Middle, Bottom.
+  - Distribute Spacing: Distribute horizontal and vertical gap evenly across 3+ items.
+- **Auto Layout Containers (`Shift + A`)**:
+  - Wrap any selected elements into a responsive flexbox container.
+  - Set direction (`horizontal` or `vertical`), gap, padding, align, and justify.
+  - Set child sizing to `fixed` (px), `fill` (container), or `hug` (contents).
+- **Responsive Constraints & Presets**:
+  - Horizontal constraints (`left`, `right`, `left-right`, `center`, `scale`).
+  - Screen presets: `iPhone 15`, `iPhone SE`, `Android Compact`, `Android Large`, or custom size.
+  - Safe area inset guides for notch and home indicator bars.
 
 ---
 
-## 5. AI Import Engine
+## 5. Developer Inspect Mode & Handoff
+
+Switch to **Inspect** in the top toolbar segmented switch (`Design | Prototype | Inspect`):
+- **Read-Only Inspection**: Canvas interaction is non-destructive—click any element to inspect without moving or resizing.
+- **Metrics & Box Model**: Coordinates, dimensions, constraints, and auto layout hierarchy.
+- **Code Generators**:
+  - **Copy CSS**: 1-click standard CSS box model snippet.
+  - **Tailwind**: Utility classes for dimensions, spacing, fonts, and colors.
+  - **Copy JSON**: Raw `.low.json` node snippet.
+  - **Tokens**: CSS `:root { --low-... }` custom variables.
+
+---
+
+## 6. Export & Handoff
+
+- **Vector SVG Export**: Export the active screen or selected elements as clean standalone SVGs via the toolbar or Inspect panel.
+- **PNG Export**: Client-side high-resolution rasterization of individual screens and nodes.
+- **Design Tokens Export**: Export `tokens.json` and `tokens.css`.
+- **Standalone Offline Prototype (`prototype.zip`)**: Export an offline interactive bundle with zero external server dependencies, playable directly in any modern browser via `index.html`.
+- **LOW Format (`.low.json`)**: Export and import transparent project files.
+
+---
+
+## 7. AI Import Engine
 
 Generate complete screens, components, or interactive flows from plain English:
 
@@ -68,7 +103,7 @@ Generate complete screens, components, or interactive flows from plain English:
 
 ---
 
-## 6. Universal Agent Connect
+## 8. Universal Agent Connect (v2.4.0)
 
 Allow external AI agents (Cursor, Claude, Codex, Antigravity, Hermes) to read and edit your design in real time:
 

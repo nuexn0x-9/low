@@ -1,0 +1,230 @@
+{
+  "lowVersion": "1.0.0",
+  "document": {
+    "id": "proj_agent_generated_flow",
+    "name": "Agent Generated Flow",
+    "designTokens": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#18181b",
+        "muted": "#71717a",
+        "border": "#d4d4d8",
+        "surface": "#f4f4f5",
+        "primary": "#18181b",
+        "secondary": "#f4f4f5"
+      },
+      "radius": {
+        "none": 0,
+        "sm": 4,
+        "md": 8,
+        "lg": 12,
+        "xl": 16,
+        "full": 9999
+      },
+      "spacing": {
+        "xs": 4,
+        "sm": 8,
+        "md": 16,
+        "lg": 24,
+        "xl": 32
+      }
+    },
+    "components": [
+      {
+        "id": "comp_primary_btn",
+        "name": "Primary Button",
+        "category": "buttons",
+        "masterNode": {
+          "type": "button",
+          "name": "Primary Button",
+          "width": 342,
+          "height": 48,
+          "text": "Continue",
+          "style": {
+            "fill": "#18181b",
+            "stroke": "#000000",
+            "strokeWidth": 1,
+            "radius": 10,
+            "color": "#ffffff",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "align": "center",
+            "opacity": 100
+          }
+        }
+      },
+      {
+        "id": "comp_bottom_nav",
+        "name": "Bottom Navigation Bar",
+        "category": "navigation",
+        "masterNode": {
+          "type": "bottomnav",
+          "name": "Bottom Nav",
+          "width": 390,
+          "height": 64,
+          "text": "",
+          "style": {
+            "fill": "#ffffff",
+            "stroke": "#e4e4e7",
+            "strokeWidth": 1,
+            "opacity": 100
+          }
+        }
+      }
+    ],
+    "frames": [
+      {
+        "id": "ag_dashboard",
+        "name": "Overview",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "ag_topbar",
+            "type": "text",
+            "name": "Top Header",
+            "x": 24,
+            "y": 56,
+            "width": 342,
+            "height": 28,
+            "text": "System Insights",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 20,
+              "fontWeight": 700,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ag_stack_1",
+            "type": "autoLayout",
+            "name": "Metrics Stack",
+            "x": 24,
+            "y": 100,
+            "width": 342,
+            "height": 180,
+            "layout": {
+              "direction": "vertical",
+              "gap": 8,
+              "padding": {
+                "top": 16,
+                "right": 16,
+                "bottom": 16,
+                "left": 16
+              },
+              "align": "stretch",
+              "justify": "start",
+              "wrap": false
+            },
+            "style": {
+              "fill": "#f4f4f5",
+              "radius": 14,
+              "opacity": 100
+            },
+            "children": [
+              "ag_metric_title",
+              "ag_metric_val",
+              "ag_metric_status"
+            ]
+          },
+          {
+            "id": "ag_metric_title",
+            "type": "text",
+            "name": "Metric Label",
+            "parentId": "ag_stack_1",
+            "x": 0,
+            "y": 0,
+            "width": 310,
+            "height": 20,
+            "text": "Active Autonomous Nodes",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 13,
+              "fontWeight": 500,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ag_metric_val",
+            "type": "text",
+            "name": "Metric Value",
+            "parentId": "ag_stack_1",
+            "x": 0,
+            "y": 28,
+            "width": 310,
+            "height": 44,
+            "text": "1,429",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 36,
+              "fontWeight": 800,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ag_metric_status",
+            "type": "text",
+            "name": "Metric Status",
+            "parentId": "ag_stack_1",
+            "x": 0,
+            "y": 80,
+            "width": 310,
+            "height": 20,
+            "text": "+18.4% compared to yesterday",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 12,
+              "fontWeight": 600,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ag_action_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Inspect Stack Button",
+            "x": 24,
+            "y": 300,
+            "width": 342,
+            "height": 48,
+            "text": "Trigger Rebalance",
+            "style": {
+              "fill": "#18181b",
+              "radius": 10,
+              "color": "#ffffff",
+              "fontSize": 14,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ag_nav",
+            "type": "component",
+            "componentId": "comp_bottom_nav",
+            "name": "Bottom Navigation",
+            "x": 0,
+            "y": 780,
+            "width": 390,
+            "height": 64,
+            "text": "",
+            "style": {
+              "fill": "#ffffff",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "opacity": 100
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,307 @@
+{
+  "lowVersion": "1.0.0",
+  "document": {
+    "id": "proj_marketplace_home",
+    "name": "Marketplace Home",
+    "designTokens": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#18181b",
+        "muted": "#71717a",
+        "border": "#d4d4d8",
+        "surface": "#f4f4f5",
+        "primary": "#18181b",
+        "secondary": "#f4f4f5"
+      },
+      "radius": {
+        "none": 0,
+        "sm": 4,
+        "md": 8,
+        "lg": 12,
+        "xl": 16,
+        "full": 9999
+      },
+      "spacing": {
+        "xs": 4,
+        "sm": 8,
+        "md": 16,
+        "lg": 24,
+        "xl": 32
+      }
+    },
+    "components": [
+      {
+        "id": "comp_primary_btn",
+        "name": "Primary Button",
+        "category": "buttons",
+        "masterNode": {
+          "type": "button",
+          "name": "Primary Button",
+          "width": 342,
+          "height": 48,
+          "text": "Continue",
+          "style": {
+            "fill": "#18181b",
+            "stroke": "#000000",
+            "strokeWidth": 1,
+            "radius": 10,
+            "color": "#ffffff",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "align": "center",
+            "opacity": 100
+          }
+        }
+      },
+      {
+        "id": "comp_bottom_nav",
+        "name": "Bottom Navigation Bar",
+        "category": "navigation",
+        "masterNode": {
+          "type": "bottomnav",
+          "name": "Bottom Nav",
+          "width": 390,
+          "height": 64,
+          "text": "",
+          "style": {
+            "fill": "#ffffff",
+            "stroke": "#e4e4e7",
+            "strokeWidth": 1,
+            "opacity": 100
+          }
+        }
+      }
+    ],
+    "frames": [
+      {
+        "id": "frame_mkt_home",
+        "name": "Marketplace Home",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "mk_search_inp",
+            "type": "input",
+            "name": "Search Bar",
+            "x": 24,
+            "y": 54,
+            "width": 342,
+            "height": 44,
+            "text": "Search curated essentials...",
+            "style": {
+              "fill": "#f4f4f5",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "radius": 12,
+              "color": "#71717a",
+              "fontSize": 13,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_promo_banner",
+            "type": "rectangle",
+            "name": "Promo Banner",
+            "x": 24,
+            "y": 114,
+            "width": 342,
+            "height": 140,
+            "style": {
+              "fill": "#18181b",
+              "radius": 14,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_promo_tag",
+            "type": "text",
+            "name": "Promo Tag",
+            "x": 44,
+            "y": 140,
+            "width": 200,
+            "height": 20,
+            "text": "AUTUMN DROP 2026",
+            "style": {
+              "color": "#a1a1aa",
+              "fontSize": 11,
+              "fontWeight": 600,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_promo_head",
+            "type": "text",
+            "name": "Promo Headline",
+            "x": 44,
+            "y": 165,
+            "width": 260,
+            "height": 32,
+            "text": "Monochrome Studio Kit",
+            "style": {
+              "color": "#ffffff",
+              "fontSize": 20,
+              "fontWeight": 700,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_promo_btn",
+            "type": "button",
+            "name": "Shop Now Button",
+            "x": 44,
+            "y": 205,
+            "width": 110,
+            "height": 32,
+            "text": "Explore \u2192",
+            "style": {
+              "fill": "#ffffff",
+              "radius": 6,
+              "color": "#18181b",
+              "fontSize": 12,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_sec_title",
+            "type": "text",
+            "name": "Section Title",
+            "x": 24,
+            "y": 272,
+            "width": 200,
+            "height": 24,
+            "text": "Trending Products",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 16,
+              "fontWeight": 700,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_1",
+            "type": "rectangle",
+            "name": "Product 1 Image",
+            "x": 24,
+            "y": 308,
+            "width": 164,
+            "height": 160,
+            "style": {
+              "fill": "#f4f4f5",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "radius": 12,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_1_title",
+            "type": "text",
+            "name": "Product 1 Title",
+            "x": 24,
+            "y": 476,
+            "width": 164,
+            "height": 20,
+            "text": "Ceramic Desk Pot",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 13,
+              "fontWeight": 600,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_1_price",
+            "type": "text",
+            "name": "Product 1 Price",
+            "x": 24,
+            "y": 498,
+            "width": 164,
+            "height": 18,
+            "text": "$42.00",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 12,
+              "fontWeight": 500,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_2",
+            "type": "rectangle",
+            "name": "Product 2 Image",
+            "x": 202,
+            "y": 308,
+            "width": 164,
+            "height": 160,
+            "style": {
+              "fill": "#f4f4f5",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "radius": 12,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_2_title",
+            "type": "text",
+            "name": "Product 2 Title",
+            "x": 202,
+            "y": 476,
+            "width": 164,
+            "height": 20,
+            "text": "Matte Aluminum Pen",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 13,
+              "fontWeight": 600,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_card_2_price",
+            "type": "text",
+            "name": "Product 2 Price",
+            "x": 202,
+            "y": 498,
+            "width": 164,
+            "height": 18,
+            "text": "$28.00",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 12,
+              "fontWeight": 500,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "mk_bottom_nav",
+            "type": "component",
+            "componentId": "comp_bottom_nav",
+            "name": "Bottom Navigation",
+            "x": 0,
+            "y": 780,
+            "width": 390,
+            "height": 64,
+            "text": "",
+            "style": {
+              "fill": "#ffffff",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "opacity": 100
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

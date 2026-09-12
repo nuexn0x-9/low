@@ -1,0 +1,422 @@
+{
+  "lowVersion": "1.0.0",
+  "document": {
+    "id": "proj_onboarding_flow",
+    "name": "3-Screen Mobile Onboarding",
+    "designTokens": {
+      "colors": {
+        "background": "#ffffff",
+        "foreground": "#18181b",
+        "muted": "#71717a",
+        "border": "#d4d4d8",
+        "surface": "#f4f4f5",
+        "primary": "#18181b",
+        "secondary": "#f4f4f5"
+      },
+      "radius": {
+        "none": 0,
+        "sm": 4,
+        "md": 8,
+        "lg": 12,
+        "xl": 16,
+        "full": 9999
+      },
+      "spacing": {
+        "xs": 4,
+        "sm": 8,
+        "md": 16,
+        "lg": 24,
+        "xl": 32
+      }
+    },
+    "components": [
+      {
+        "id": "comp_primary_btn",
+        "name": "Primary Button",
+        "category": "buttons",
+        "masterNode": {
+          "type": "button",
+          "name": "Primary Button",
+          "width": 342,
+          "height": 48,
+          "text": "Continue",
+          "style": {
+            "fill": "#18181b",
+            "stroke": "#000000",
+            "strokeWidth": 1,
+            "radius": 10,
+            "color": "#ffffff",
+            "fontSize": 15,
+            "fontWeight": 600,
+            "align": "center",
+            "opacity": 100
+          }
+        }
+      },
+      {
+        "id": "comp_bottom_nav",
+        "name": "Bottom Navigation Bar",
+        "category": "navigation",
+        "masterNode": {
+          "type": "bottomnav",
+          "name": "Bottom Nav",
+          "width": 390,
+          "height": 64,
+          "text": "",
+          "style": {
+            "fill": "#ffffff",
+            "stroke": "#e4e4e7",
+            "strokeWidth": 1,
+            "opacity": 100
+          }
+        }
+      }
+    ],
+    "frames": [
+      {
+        "id": "ob_step_1",
+        "name": "Step 1: Discover",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "ob1_img",
+            "type": "rectangle",
+            "name": "Hero Graphic 1",
+            "x": 35,
+            "y": 140,
+            "width": 320,
+            "height": 260,
+            "style": {
+              "fill": "#f4f4f5",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "radius": 24,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob1_title",
+            "type": "text",
+            "name": "Step 1 Title",
+            "x": 24,
+            "y": 440,
+            "width": 342,
+            "height": 36,
+            "text": "Designed for Mobile",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 24,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob1_sub",
+            "type": "text",
+            "name": "Step 1 Subtitle",
+            "x": 24,
+            "y": 484,
+            "width": 342,
+            "height": 44,
+            "text": "Every wireframe fits real iOS and Android screens natively without bloat.",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob1_dots",
+            "type": "text",
+            "name": "Dots Indicator",
+            "x": 24,
+            "y": 550,
+            "width": 342,
+            "height": 20,
+            "text": "\u25cf  \u25cb  \u25cb",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 14,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob1_next_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Next Button",
+            "x": 24,
+            "y": 700,
+            "width": 342,
+            "height": 50,
+            "text": "Continue",
+            "style": {
+              "fill": "#18181b",
+              "radius": 12,
+              "color": "#ffffff",
+              "fontSize": 15,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Step 2: Collaborate"
+            }
+          },
+          {
+            "id": "ob1_skip",
+            "type": "link",
+            "name": "Skip Link",
+            "x": 24,
+            "y": 762,
+            "width": 342,
+            "height": 20,
+            "text": "Skip Tour",
+            "style": {
+              "color": "#a1a1aa",
+              "fontSize": 13,
+              "fontWeight": 500,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Step 3: Launch"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ob_step_2",
+        "name": "Step 2: Collaborate",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "ob2_img",
+            "type": "rectangle",
+            "name": "Hero Graphic 2",
+            "x": 35,
+            "y": 140,
+            "width": 320,
+            "height": 260,
+            "style": {
+              "fill": "#f4f4f5",
+              "stroke": "#e4e4e7",
+              "strokeWidth": 1,
+              "radius": 24,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob2_title",
+            "type": "text",
+            "name": "Step 2 Title",
+            "x": 24,
+            "y": 440,
+            "width": 342,
+            "height": 36,
+            "text": "Agent & AI Ready",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 24,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob2_sub",
+            "type": "text",
+            "name": "Step 2 Subtitle",
+            "x": 24,
+            "y": 484,
+            "width": 342,
+            "height": 44,
+            "text": "Empower external AI coding assistants to co-design and audit screens directly.",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob2_dots",
+            "type": "text",
+            "name": "Dots Indicator",
+            "x": 24,
+            "y": 550,
+            "width": 342,
+            "height": 20,
+            "text": "\u25cb  \u25cf  \u25cb",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 14,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob2_next_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Next Button",
+            "x": 24,
+            "y": 700,
+            "width": 342,
+            "height": 50,
+            "text": "Continue",
+            "style": {
+              "fill": "#18181b",
+              "radius": 12,
+              "color": "#ffffff",
+              "fontSize": 15,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Step 3: Launch"
+            }
+          }
+        ]
+      },
+      {
+        "id": "ob_step_3",
+        "name": "Step 3: Launch",
+        "preset": "iPhone 15",
+        "width": 390,
+        "height": 844,
+        "safeArea": {
+          "top": 44,
+          "bottom": 34,
+          "left": 0,
+          "right": 0,
+          "visible": true
+        },
+        "nodes": [
+          {
+            "id": "ob3_img",
+            "type": "rectangle",
+            "name": "Hero Graphic 3",
+            "x": 35,
+            "y": 140,
+            "width": 320,
+            "height": 260,
+            "style": {
+              "fill": "#18181b",
+              "radius": 24,
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob3_title",
+            "type": "text",
+            "name": "Step 3 Title",
+            "x": 24,
+            "y": 440,
+            "width": 342,
+            "height": 36,
+            "text": "Instant Developer Handoff",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 24,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob3_sub",
+            "type": "text",
+            "name": "Step 3 Subtitle",
+            "x": 24,
+            "y": 484,
+            "width": 342,
+            "height": 44,
+            "text": "Export clean CSS, design tokens, SVG, and offline interactive prototypes in 1 click.",
+            "style": {
+              "color": "#71717a",
+              "fontSize": 14,
+              "fontWeight": 400,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob3_dots",
+            "type": "text",
+            "name": "Dots Indicator",
+            "x": 24,
+            "y": 550,
+            "width": 342,
+            "height": 20,
+            "text": "\u25cb  \u25cb  \u25cf",
+            "style": {
+              "color": "#18181b",
+              "fontSize": 14,
+              "fontWeight": 700,
+              "align": "center",
+              "opacity": 100
+            }
+          },
+          {
+            "id": "ob3_finish_btn",
+            "type": "component",
+            "componentId": "comp_primary_btn",
+            "name": "Finish Button",
+            "x": 24,
+            "y": 700,
+            "width": 342,
+            "height": 50,
+            "text": "Get Started Now",
+            "style": {
+              "fill": "#18181b",
+              "radius": 12,
+              "color": "#ffffff",
+              "fontSize": 15,
+              "fontWeight": 600,
+              "align": "center",
+              "opacity": 100
+            },
+            "prototype": {
+              "trigger": "tap",
+              "action": "navigate",
+              "target": "Step 1: Discover"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
