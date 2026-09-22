@@ -313,14 +313,53 @@ export default function EditorShell() {
     setActiveTool("select");
   };
 
+  const getAllDescendantIds = (nodes, startIds) => {
+    const toCheck = Array.isArray(startIds) ? [...startIds] : [startIds];
+    const all = new Set(toCheck);
+    while (toCheck.length > 0) {
+      const currentId = toCheck.pop();
+      const node = nodes.find((n) => n.id === currentId);
+      if (node && Array.isArray(node.children)) {
+        for (const childId of node.children) {
+          if (!all.has(childId)) {
+            all.add(childId);
+            toCheck.push(childId);
+          }
+        }
+      }
+      for (const n of nodes) {
+        if (n.parentId === currentId && !all.has(n.id)) {
+          all.add(n.id);
+          toCheck.push(n.id);
+        }
+      }
+    }
+    return all;
+  };
+
+  const purgeNodesAndCleanParents = (nodes, targetIds) => {
+    const allToDelete = getAllDescendantIds(nodes, targetIds);
+    return nodes
+      .filter((n) => !allToDelete.has(n.id))
+      .map((n) => {
+        if (Array.isArray(n.children)) {
+          const newChildren = n.children.filter((cid) => !allToDelete.has(cid));
+          if (newChildren.length !== n.children.length) {
+            return { ...n, children: newChildren };
+          }
+        }
+        return n;
+      });
+  };
+
   const deleteNode = (nid) => {
-    commit(mapActive((nodes) => nodes.filter((n) => n.id !== nid)));
+    commit(mapActive((nodes) => purgeNodesAndCleanParents(nodes, [nid])));
     setSelectedIds((prev) => prev.filter((id) => id !== nid));
   };
 
   const deleteSelected = (idsToDelete = selectedIds) => {
     if (!idsToDelete || !idsToDelete.length) return;
-    commit(mapActive((nodes) => nodes.filter((n) => !idsToDelete.includes(n.id))));
+    commit(mapActive((nodes) => purgeNodesAndCleanParents(nodes, idsToDelete)));
     setSelectedIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
     toast.success(`Deleted ${idsToDelete.length} element(s)`);
   };
@@ -363,13 +402,23 @@ export default function EditorShell() {
   const duplicateFrame = (fid) => {
     const target = frames.find((f) => f.id === fid);
     if (!target) return;
+    const idMap = {};
+    (target.nodes || []).forEach((n) => {
+      idMap[n.id] = uid(n.type || "node");
+    });
+
     const cloned = {
       ...target,
       id: newId("frame"),
       name: `${target.name} Copy`,
-      nodes: target.nodes.map((n) => ({
+      safeArea: target.safeArea ? { ...target.safeArea } : undefined,
+      nodes: (target.nodes || []).map((n) => ({
         ...n,
-        id: uid(n.type || "node"),
+        id: idMap[n.id] || uid(n.type || "node"),
+        parentId: n.parentId ? idMap[n.parentId] || n.parentId : undefined,
+        children: Array.isArray(n.children)
+          ? n.children.map((cid) => idMap[cid] || cid)
+          : n.children,
         x: n.x,
         y: n.y,
         style: { ...n.style },
@@ -612,9 +661,11 @@ export default function EditorShell() {
     commit(
       mapActive((currNodes) => {
         const firstIdx = Math.min(...toGroup.map((n) => currNodes.indexOf(n)));
-        const nextNodes = [...currNodes];
-        nextNodes.splice(firstIdx, 0, groupNode);
-        return nextNodes;
+        const updatedNodes = currNodes.map((n) =>
+          selectedIds.includes(n.id) ? { ...n, parentId: groupId } : n
+        );
+        updatedNodes.splice(firstIdx, 0, groupNode);
+        return updatedNodes;
       })
     );
     setSelectedIds([groupId]);
@@ -783,10 +834,13 @@ export default function EditorShell() {
 
   const nudgeSelection = (dx, dy) => {
     if (!selectedIds.length) return;
+    const activeF = framesRef.current.find((f) => f.id === activeFrameId);
+    if (!activeF) return;
+    const allNudgeIds = getAllDescendantIds(activeF.nodes || [], selectedIds);
     commitCoalesced(
       mapActive((nodes) =>
         nodes.map((n) =>
-          selectedIds.includes(n.id)
+          allNudgeIds.has(n.id)
             ? { ...n, x: Math.round(n.x + dx), y: Math.round(n.y + dy) }
             : n
         )
@@ -1081,13 +1135,16 @@ export default function EditorShell() {
     try {
       // 1. Attempt backend apply if online (creating automatic snapshot & checking revision)
       const res = await applyAiImport(id, resultType, documentPatch, currentRev);
-      if (res && res.applied) {
-        if (res.new_revision) {
-          setCurrentRevision(res.new_revision);
+      const isApplied = res && (res.applied || res.status === "success");
+      if (isApplied) {
+        const rev = res.new_revision || res.revision;
+        if (rev) {
+          setCurrentRevision(rev);
         }
         // Load latest frames from server or patch
-        if (res.document && res.document.frames) {
-          commit(() => res.document.frames);
+        const serverFrames = res.frames || res.document?.frames;
+        if (serverFrames && Array.isArray(serverFrames)) {
+          commit(() => serverFrames);
           const firstNewFrame = documentPatch.frames?.[0];
           if (firstNewFrame) {
             setActiveFrameId(firstNewFrame.id);
@@ -1143,7 +1200,7 @@ export default function EditorShell() {
   const startAgent = async (preset = agentPreset) => {
     setAgentConnecting(true);
     try {
-      const data = await createAgentSession(project.name, framesRef.current, preset);
+      const data = await createAgentSession(project.name, framesRef.current, preset, null, id);
       setAgentSession({
         session_id: data.session_id,
         token: data.token,
@@ -1261,19 +1318,20 @@ export default function EditorShell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentSession, activeFrameId]);
 
-  // ----- keyboard & clipboard -----
   const copySelection = () => {
     const activeF = framesRef.current.find((f) => f.id === activeFrameId);
     if (!activeF) return;
     const nodes = activeF.nodes || [];
-    const selectedList = nodes.filter((n) => selectedIds.includes(n.id));
+    const allSelectedIds = getAllDescendantIds(nodes, selectedIds);
+    const selectedList = nodes.filter((n) => allSelectedIds.has(n.id));
 
     if (selectedList.length > 0) {
       clipboardRef.current = {
         type: "nodes",
+        rootIds: [...selectedIds],
         data: JSON.parse(JSON.stringify(selectedList)),
       };
-      toast.success(`Copied ${selectedList.length} element(s)`);
+      toast.success(`Copied ${selectedIds.length} element(s)`);
     } else if (activeFrameId) {
       clipboardRef.current = {
         type: "frame",
@@ -1301,30 +1359,44 @@ export default function EditorShell() {
           ...source,
           id: idMap[source.id],
           name: `${source.name} Copy`,
+          parentId: source.parentId && idMap[source.parentId] ? idMap[source.parentId] : undefined,
           x: (source.x || 0) + 20,
           y: (source.y || 0) + 20,
           style: { ...source.style },
           prototype: source.prototype ? { ...source.prototype } : undefined,
         };
-        if (source.type === "group" && Array.isArray(source.children)) {
+        if (Array.isArray(source.children)) {
           cloned.children = source.children.map((cid) => idMap[cid] || cid);
         }
         return cloned;
       });
 
       commit(mapActive((nodes) => [...nodes, ...newNodes]));
-      setSelectedIds(newNodes.map((n) => n.id));
-      clipboardRef.current = { type: "nodes", data: newNodes };
+      const newSelected = item.rootIds
+        ? item.rootIds.map((id) => idMap[id]).filter(Boolean)
+        : newNodes.map((n) => n.id);
+      setSelectedIds(newSelected.length ? newSelected : newNodes.map((n) => n.id));
+      clipboardRef.current = { type: "nodes", rootIds: item.rootIds, data: newNodes };
       toast.success(`Pasted ${newNodes.length} element(s)`);
     } else if (item.type === "frame") {
       const source = item.data;
+      const idMap = {};
+      (source.nodes || []).forEach((n) => {
+        idMap[n.id] = uid(n.type || "node");
+      });
+
       const newF = {
         ...source,
         id: newId("frame"),
         name: `${source.name} Copy`,
+        safeArea: source.safeArea ? { ...source.safeArea } : undefined,
         nodes: (source.nodes || []).map((n) => ({
           ...n,
-          id: uid(n.type || "node"),
+          id: idMap[n.id] || uid(n.type || "node"),
+          parentId: n.parentId ? idMap[n.parentId] || n.parentId : undefined,
+          children: Array.isArray(n.children)
+            ? n.children.map((cid) => idMap[cid] || cid)
+            : n.children,
           style: { ...n.style },
           prototype: n.prototype ? { ...n.prototype } : undefined,
         })),
@@ -1340,7 +1412,8 @@ export default function EditorShell() {
     const activeF = framesRef.current.find((f) => f.id === activeFrameId);
     if (!activeF) return;
     const nodes = activeF.nodes || [];
-    const selectedList = nodes.filter((n) => selectedIds.includes(n.id));
+    const allSelectedIds = getAllDescendantIds(nodes, selectedIds);
+    const selectedList = nodes.filter((n) => allSelectedIds.has(n.id));
 
     if (selectedList.length > 0) {
       const idMap = {};
@@ -1353,20 +1426,22 @@ export default function EditorShell() {
           ...n,
           id: idMap[n.id],
           name: `${n.name} Copy`,
+          parentId: n.parentId && idMap[n.parentId] ? idMap[n.parentId] : undefined,
           x: (n.x || 0) + 16,
           y: (n.y || 0) + 16,
           style: { ...n.style },
           prototype: n.prototype ? { ...n.prototype } : undefined,
         };
-        if (n.type === "group" && Array.isArray(n.children)) {
+        if (Array.isArray(n.children)) {
           cloned.children = n.children.map((cid) => idMap[cid] || cid);
         }
         return cloned;
       });
 
       commit(mapActive((curr) => [...curr, ...newNodes]));
-      setSelectedIds(newNodes.map((n) => n.id));
-      toast.success(`Duplicated ${newNodes.length} element(s)`);
+      const newSelected = selectedIds.map((id) => idMap[id]).filter(Boolean);
+      setSelectedIds(newSelected.length ? newSelected : newNodes.map((n) => n.id));
+      toast.success(`Duplicated ${selectedList.length} element(s)`);
     } else if (activeFrameId) {
       duplicateFrame(activeFrameId);
     }
@@ -1500,6 +1575,9 @@ export default function EditorShell() {
           setSelectedIds={setSelectedIds}
           onToggleLock={toggleLayerLock}
           onToggleHide={toggleLayerHide}
+          onDuplicateFrame={duplicateFrame}
+          onReorderLayer={reorderLayer}
+          onRenameNode={(nid, name) => updateNode(nid, { name })}
           onExport={doExport}
           onImportClick={() => fileInputRef.current?.click()}
           onImportFile={doImportFile}
@@ -1544,6 +1622,7 @@ export default function EditorShell() {
           endTransaction={endTransaction}
           onDropItem={dropItem}
           zoom={zoom}
+          setZoom={setZoom}
           mode={mode}
           snappingEnabled={snappingEnabled}
           components={components}

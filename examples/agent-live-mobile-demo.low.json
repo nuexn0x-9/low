@@ -1,0 +1,741 @@
+{
+  "version": "1.0.0",
+  "app": "LOW Mobile Wireframing",
+  "name": "Live Agent Mobile Demo",
+  "source": "Antigravity Agent Connect",
+  "sessionId": "sess_d9dec272",
+  "designTokens": {
+    "colors": {
+      "background": "#ffffff",
+      "surface": "#f4f4f5",
+      "textPrimary": "#18181b",
+      "textSecondary": "#71717a",
+      "border": "#e4e4e7",
+      "accent": "#18181b"
+    },
+    "radius": {
+      "sm": 6,
+      "md": 10,
+      "lg": 16,
+      "full": 9999
+    },
+    "spacing": {
+      "xs": 4,
+      "sm": 8,
+      "md": 16,
+      "lg": 24,
+      "xl": 32
+    }
+  },
+  "frames": [
+    {
+      "id": "frame_d0e7bfa2",
+      "name": "Wallet Dashboard",
+      "nodes": [
+        {
+          "id": "node_5f64549b",
+          "type": "text",
+          "name": "App Bar",
+          "x": 24,
+          "y": 52,
+          "width": 200,
+          "height": 28,
+          "text": "Screen 1",
+          "style": {
+            "color": "#18181b",
+            "fontSize": 20,
+            "fontWeight": 700,
+            "align": "left",
+            "opacity": 100
+          }
+        },
+        {
+          "id": "el_avatar",
+          "type": "rectangle",
+          "name": "User Avatar",
+          "x": 20,
+          "y": 60,
+          "width": 40,
+          "height": 40,
+          "text": "",
+          "style": {
+            "backgroundColor": "#18181b",
+            "borderRadius": 20
+          }
+        },
+        {
+          "id": "el_greeting",
+          "type": "text",
+          "name": "Greeting Text",
+          "x": 68,
+          "y": 60,
+          "width": 180,
+          "height": 22,
+          "text": "Alex Morgan",
+          "style": {
+            "fontSize": 15,
+            "fontWeight": "600",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "el_user_status",
+          "type": "text",
+          "name": "User Status",
+          "x": 68,
+          "y": 82,
+          "width": 150,
+          "height": 18,
+          "text": "Premium Account",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        },
+        {
+          "id": "el_balance_card",
+          "type": "rectangle",
+          "name": "Balance Card",
+          "x": 20,
+          "y": 120,
+          "width": 350,
+          "height": 140,
+          "text": "",
+          "style": {
+            "backgroundColor": "#18181b",
+            "borderRadius": 16,
+            "borderWidth": 1,
+            "borderColor": "#27272a"
+          }
+        },
+        {
+          "id": "el_balance_label",
+          "type": "text",
+          "name": "Balance Label",
+          "x": 40,
+          "y": 140,
+          "width": 200,
+          "height": 16,
+          "text": "TOTAL BALANCE",
+          "style": {
+            "fontSize": 10,
+            "fontWeight": "600",
+            "color": "#a1a1aa",
+            "letterSpacing": 1
+          }
+        },
+        {
+          "id": "el_balance_val",
+          "type": "text",
+          "name": "Balance Value",
+          "x": 40,
+          "y": 162,
+          "width": 260,
+          "height": 42,
+          "text": "$48,250.80",
+          "style": {
+            "fontSize": 32,
+            "fontWeight": "700",
+            "color": "#ffffff"
+          }
+        },
+        {
+          "id": "el_balance_change",
+          "type": "text",
+          "name": "Balance Trend Chip",
+          "x": 40,
+          "y": 215,
+          "width": 240,
+          "height": 20,
+          "text": "+12.4% ($5,320) this month",
+          "style": {
+            "fontSize": 11,
+            "color": "#d4d4d8"
+          }
+        },
+        {
+          "id": "btn_send",
+          "type": "button",
+          "name": "Send Button",
+          "x": 20,
+          "y": 280,
+          "width": 78,
+          "height": 44,
+          "text": "Send",
+          "style": {
+            "backgroundColor": "#18181b",
+            "color": "#ffffff",
+            "borderRadius": 10,
+            "fontSize": 12,
+            "fontWeight": "600"
+          },
+          "prototype": {
+            "trigger": "tap",
+            "action": "navigate",
+            "target": "frame_06bbf319",
+            "transition": "slide"
+          }
+        },
+        {
+          "id": "btn_receive",
+          "type": "button",
+          "name": "Receive Button",
+          "x": 110,
+          "y": 280,
+          "width": 78,
+          "height": 44,
+          "text": "Receive",
+          "style": {
+            "backgroundColor": "#f4f4f5",
+            "color": "#18181b",
+            "borderRadius": 10,
+            "fontSize": 12,
+            "fontWeight": "600"
+          }
+        },
+        {
+          "id": "btn_topup",
+          "type": "button",
+          "name": "Top Up Button",
+          "x": 200,
+          "y": 280,
+          "width": 78,
+          "height": 44,
+          "text": "Top Up",
+          "style": {
+            "backgroundColor": "#f4f4f5",
+            "color": "#18181b",
+            "borderRadius": 10,
+            "fontSize": 12,
+            "fontWeight": "600"
+          }
+        },
+        {
+          "id": "btn_more",
+          "type": "button",
+          "name": "More Button",
+          "x": 290,
+          "y": 280,
+          "width": 80,
+          "height": 44,
+          "text": "More",
+          "style": {
+            "backgroundColor": "#f4f4f5",
+            "color": "#18181b",
+            "borderRadius": 10,
+            "fontSize": 12,
+            "fontWeight": "600"
+          }
+        },
+        {
+          "id": "el_tx_title",
+          "type": "text",
+          "name": "Transactions Header",
+          "x": 20,
+          "y": 350,
+          "width": 200,
+          "height": 24,
+          "text": "Recent Transactions",
+          "style": {
+            "fontSize": 15,
+            "fontWeight": "600",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "tx_card_1",
+          "type": "rectangle",
+          "name": "Apple Store Item",
+          "x": 20,
+          "y": 386,
+          "width": 350,
+          "height": 60,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": 12,
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "tx_txt_1",
+          "type": "text",
+          "name": "Apple Store Title",
+          "x": 36,
+          "y": 396,
+          "width": 200,
+          "height": 20,
+          "text": "Apple Store Ginza",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "500",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "tx_sub_1",
+          "type": "text",
+          "name": "Apple Store Subtitle",
+          "x": 36,
+          "y": 418,
+          "width": 180,
+          "height": 16,
+          "text": "Hardware Purchase \u2022 Today",
+          "style": {
+            "fontSize": 10,
+            "color": "#a1a1aa"
+          }
+        },
+        {
+          "id": "tx_amt_1",
+          "type": "text",
+          "name": "Apple Store Amount",
+          "x": 270,
+          "y": 404,
+          "width": 84,
+          "height": 22,
+          "text": "-$129.00",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "600",
+            "color": "#18181b",
+            "textAlign": "right"
+          }
+        },
+        {
+          "id": "tx_card_2",
+          "type": "rectangle",
+          "name": "Salary Item",
+          "x": 20,
+          "y": 456,
+          "width": 350,
+          "height": 60,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": 12,
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "tx_txt_2",
+          "type": "text",
+          "name": "Salary Title",
+          "x": 36,
+          "y": 466,
+          "width": 200,
+          "height": 20,
+          "text": "Anthropic Tech Payroll",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "500",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "tx_sub_2",
+          "type": "text",
+          "name": "Salary Subtitle",
+          "x": 36,
+          "y": 488,
+          "width": 180,
+          "height": 16,
+          "text": "Direct Deposit \u2022 Yesterday",
+          "style": {
+            "fontSize": 10,
+            "color": "#a1a1aa"
+          }
+        },
+        {
+          "id": "tx_amt_2",
+          "type": "text",
+          "name": "Salary Amount",
+          "x": 270,
+          "y": 474,
+          "width": 84,
+          "height": 22,
+          "text": "+$4,850.00",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "600",
+            "color": "#18181b",
+            "textAlign": "right"
+          }
+        },
+        {
+          "id": "tx_card_3",
+          "type": "rectangle",
+          "name": "Design Item",
+          "x": 20,
+          "y": 526,
+          "width": 350,
+          "height": 60,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": 12,
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "tx_txt_3",
+          "type": "text",
+          "name": "Design Title",
+          "x": 36,
+          "y": 536,
+          "width": 200,
+          "height": 20,
+          "text": "Stripe Payout: UI Kit",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "500",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "tx_sub_3",
+          "type": "text",
+          "name": "Design Subtitle",
+          "x": 36,
+          "y": 558,
+          "width": 180,
+          "height": 16,
+          "text": "Digital Product Sales \u2022 2d ago",
+          "style": {
+            "fontSize": 10,
+            "color": "#a1a1aa"
+          }
+        },
+        {
+          "id": "tx_amt_3",
+          "type": "text",
+          "name": "Design Amount",
+          "x": 270,
+          "y": 544,
+          "width": 84,
+          "height": 22,
+          "text": "+$1,200.00",
+          "style": {
+            "fontSize": 13,
+            "fontWeight": "600",
+            "color": "#18181b",
+            "textAlign": "right"
+          }
+        },
+        {
+          "id": "el_bottom_nav",
+          "type": "rectangle",
+          "name": "Bottom Navigation",
+          "x": 0,
+          "y": 780,
+          "width": 390,
+          "height": 64,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "nav_item_1",
+          "type": "text",
+          "name": "Nav Home",
+          "x": 25,
+          "y": 800,
+          "width": 70,
+          "height": 20,
+          "text": "\u25cf Home",
+          "style": {
+            "fontSize": 11,
+            "fontWeight": "600",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "nav_item_2",
+          "type": "text",
+          "name": "Nav Cards",
+          "x": 125,
+          "y": 800,
+          "width": 60,
+          "height": 20,
+          "text": "Cards",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        },
+        {
+          "id": "nav_item_3",
+          "type": "text",
+          "name": "Nav Activity",
+          "x": 215,
+          "y": 800,
+          "width": 60,
+          "height": 20,
+          "text": "Activity",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        },
+        {
+          "id": "nav_item_4",
+          "type": "text",
+          "name": "Nav Settings",
+          "x": 305,
+          "y": 800,
+          "width": 60,
+          "height": 20,
+          "text": "Profile",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        }
+      ],
+      "preset": "iPhone 15",
+      "width": 390,
+      "height": 844,
+      "safeArea": {
+        "top": 44.0,
+        "bottom": 34.0,
+        "left": 0.0,
+        "right": 0.0,
+        "visible": true
+      }
+    },
+    {
+      "id": "frame_06bbf319",
+      "name": "Transfer Money",
+      "nodes": [
+        {
+          "id": "btn_back_s2",
+          "type": "button",
+          "name": "Back Navigation Button",
+          "x": 20,
+          "y": 60,
+          "width": 70,
+          "height": 32,
+          "text": "\u2190 Back",
+          "style": {
+            "backgroundColor": "#f4f4f5",
+            "color": "#18181b",
+            "borderRadius": 8,
+            "fontSize": 11,
+            "fontWeight": "600"
+          },
+          "prototype": {
+            "trigger": "tap",
+            "action": "back",
+            "target": "frame_d0e7bfa2",
+            "transition": "slide"
+          }
+        },
+        {
+          "id": "s2_title",
+          "type": "text",
+          "name": "Screen Title",
+          "x": 100,
+          "y": 64,
+          "width": 190,
+          "height": 24,
+          "text": "Transfer Money",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": "700",
+            "color": "#18181b",
+            "textAlign": "center"
+          }
+        },
+        {
+          "id": "s2_recipient_card",
+          "type": "rectangle",
+          "name": "Recipient Card",
+          "x": 20,
+          "y": 120,
+          "width": 350,
+          "height": 72,
+          "text": "",
+          "style": {
+            "backgroundColor": "#fafafa",
+            "borderRadius": 12,
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "s2_recipient_avatar",
+          "type": "rectangle",
+          "name": "Recipient Avatar",
+          "x": 36,
+          "y": 136,
+          "width": 40,
+          "height": 40,
+          "text": "",
+          "style": {
+            "backgroundColor": "#18181b",
+            "borderRadius": 20
+          }
+        },
+        {
+          "id": "s2_recipient_name",
+          "type": "text",
+          "name": "Recipient Name",
+          "x": 88,
+          "y": 136,
+          "width": 200,
+          "height": 20,
+          "text": "Sarah Jenkins",
+          "style": {
+            "fontSize": 14,
+            "fontWeight": "600",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "s2_recipient_email",
+          "type": "text",
+          "name": "Recipient Handle",
+          "x": 88,
+          "y": 158,
+          "width": 220,
+          "height": 16,
+          "text": "sarah.j@acme.design \u2022 Verified",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        },
+        {
+          "id": "s2_amount_label",
+          "type": "text",
+          "name": "Amount Label",
+          "x": 20,
+          "y": 220,
+          "width": 200,
+          "height": 16,
+          "text": "ENTER AMOUNT",
+          "style": {
+            "fontSize": 10,
+            "fontWeight": "600",
+            "color": "#a1a1aa",
+            "letterSpacing": 1
+          }
+        },
+        {
+          "id": "s2_amount_card",
+          "type": "rectangle",
+          "name": "Amount Input Box",
+          "x": 20,
+          "y": 242,
+          "width": 350,
+          "height": 90,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": 14,
+            "borderColor": "#18181b",
+            "borderWidth": 2
+          }
+        },
+        {
+          "id": "s2_amount_display",
+          "type": "text",
+          "name": "Amount Text",
+          "x": 40,
+          "y": 260,
+          "width": 250,
+          "height": 48,
+          "text": "$250.00",
+          "style": {
+            "fontSize": 38,
+            "fontWeight": "700",
+            "color": "#18181b"
+          }
+        },
+        {
+          "id": "s2_fee_note",
+          "type": "text",
+          "name": "Fee Info",
+          "x": 20,
+          "y": 344,
+          "width": 300,
+          "height": 18,
+          "text": "Transfer fee: $0.00 \u2022 Instant delivery",
+          "style": {
+            "fontSize": 11,
+            "color": "#71717a"
+          }
+        },
+        {
+          "id": "s2_note_card",
+          "type": "rectangle",
+          "name": "Memo Box",
+          "x": 20,
+          "y": 380,
+          "width": 350,
+          "height": 50,
+          "text": "",
+          "style": {
+            "backgroundColor": "#ffffff",
+            "borderRadius": 10,
+            "borderColor": "#e4e4e7",
+            "borderWidth": 1
+          }
+        },
+        {
+          "id": "s2_note_text",
+          "type": "text",
+          "name": "Memo Text",
+          "x": 34,
+          "y": 395,
+          "width": 300,
+          "height": 20,
+          "text": "Note: Project sprint UI design delivery",
+          "style": {
+            "fontSize": 12,
+            "color": "#3f3f46"
+          }
+        },
+        {
+          "id": "btn_confirm_transfer",
+          "type": "button",
+          "name": "Confirm Transfer Button",
+          "x": 20,
+          "y": 720,
+          "width": 350,
+          "height": 54,
+          "text": "Confirm & Send $250.00",
+          "style": {
+            "backgroundColor": "#18181b",
+            "color": "#ffffff",
+            "borderRadius": 12,
+            "fontSize": 14,
+            "fontWeight": "600"
+          },
+          "prototype": {
+            "trigger": "tap",
+            "action": "navigate",
+            "target": "frame_d0e7bfa2",
+            "transition": "fade"
+          }
+        }
+      ],
+      "preset": "iPhone 15",
+      "width": 390,
+      "height": 844,
+      "safeArea": {
+        "top": 44.0,
+        "bottom": 34.0,
+        "left": 0.0,
+        "right": 0.0,
+        "visible": true
+      }
+    }
+  ]
+}

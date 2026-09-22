@@ -524,3 +524,140 @@ async def test_payload_too_large_rejected(client: AsyncClient):
         json={"action": "add_element", "params": {"data": large_str}},
     )
     assert resp.status_code == 413
+
+
+@pytest.mark.asyncio
+async def test_agent_group_and_ungroup_maintains_parent_id(client: AsyncClient):
+    create_resp = await client.post("/api/agent/sessions", json={"name": "Group Hierarchy Test"})
+    data = create_resp.json()
+    sid = data["session_id"]
+    token = data["token"]
+    screen_id = data["frames"][0]["id"]
+
+    # Add 2 elements
+    res1 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "add_element", "params": {"screenId": screen_id, "element": {"type": "button", "name": "B1"}}},
+    )
+    id1 = res1.json()["result"]["elementId"]
+
+    res2 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "add_element", "params": {"screenId": screen_id, "element": {"type": "button", "name": "B2"}}},
+    )
+    id2 = res2.json()["result"]["elementId"]
+
+    # Group them
+    grp_resp = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "group_elements", "params": {"screenId": screen_id, "nodeIds": [id1, id2], "groupName": "Action Group"}},
+    )
+    assert grp_resp.status_code == 200
+    grp_id = grp_resp.json()["result"]["groupId"]
+
+    # Check that document nodes now have parentId == grp_id
+    doc_resp = await client.get(f"/api/agent/sessions/{sid}/document")
+    nodes = doc_resp.json()["frames"][0]["nodes"]
+    node1 = next(n for n in nodes if n["id"] == id1)
+    node2 = next(n for n in nodes if n["id"] == id2)
+    assert node1.get("parentId") == grp_id
+    assert node2.get("parentId") == grp_id
+
+    # Ungroup
+    ungrp_resp = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "ungroup_element", "params": {"screenId": screen_id, "groupId": grp_id}},
+    )
+    assert ungrp_resp.status_code == 200
+
+    doc_resp2 = await client.get(f"/api/agent/sessions/{sid}/document")
+    nodes2 = doc_resp2.json()["frames"][0]["nodes"]
+    node1_after = next(n for n in nodes2 if n["id"] == id1)
+    assert node1_after.get("parentId") is None
+
+
+@pytest.mark.asyncio
+async def test_agent_duplicate_screen_remaps_container_children(client: AsyncClient):
+    create_resp = await client.post("/api/agent/sessions", json={"name": "Duplicate Screen Test"})
+    data = create_resp.json()
+    sid = data["session_id"]
+    token = data["token"]
+    screen_id = data["frames"][0]["id"]
+
+    # Add button and autolayout
+    res1 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "add_element", "params": {"screenId": screen_id, "element": {"type": "button", "name": "Inside Button"}}},
+    )
+    btn_id = res1.json()["result"]["elementId"]
+
+    res2 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "create_auto_layout_from_selection", "params": {"screenId": screen_id, "nodeIds": [btn_id]}},
+    )
+    auto_id = res2.json()["result"]["autoLayoutId"]
+
+    # Duplicate screen
+    dup_resp = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "duplicate_screen", "params": {"screenId": screen_id, "name": "Duplicated Screen"}},
+    )
+    assert dup_resp.status_code == 200
+    new_screen_id = dup_resp.json()["result"]["screenId"]
+
+    doc_resp = await client.get(f"/api/agent/sessions/{sid}/document")
+    screens = doc_resp.json()["frames"]
+    cloned_screen = next(s for s in screens if s["id"] == new_screen_id)
+    cloned_nodes = cloned_screen["nodes"]
+
+    # Ensure the cloned autoLayout references the cloned child, NOT the old child ID
+    cloned_auto = next(n for n in cloned_nodes if n["type"] == "autoLayout")
+    cloned_btn = next(n for n in cloned_nodes if n["name"] == "Inside Button")
+    assert cloned_auto["id"] != auto_id
+    assert cloned_btn["id"] != btn_id
+    assert cloned_auto["children"] == [cloned_btn["id"]]
+    assert cloned_btn["parentId"] == cloned_auto["id"]
+
+
+@pytest.mark.asyncio
+async def test_agent_delete_element_cascades(client: AsyncClient):
+    create_resp = await client.post("/api/agent/sessions", json={"name": "Cascade Delete Test"})
+    data = create_resp.json()
+    sid = data["session_id"]
+    token = data["token"]
+    screen_id = data["frames"][0]["id"]
+
+    res1 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "add_element", "params": {"screenId": screen_id, "element": {"type": "button", "name": "Inside Child"}}},
+    )
+    btn_id = res1.json()["result"]["elementId"]
+
+    res2 = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "create_auto_layout_from_selection", "params": {"screenId": screen_id, "nodeIds": [btn_id]}},
+    )
+    auto_id = res2.json()["result"]["autoLayoutId"]
+
+    # Delete the autolayout container: child should also be cascade deleted
+    del_resp = await client.post(
+        f"/api/agent/sessions/{sid}/actions",
+        headers={"X-LOW-Token": token},
+        json={"action": "delete_element", "params": {"screenId": screen_id, "elementId": auto_id}},
+    )
+    assert del_resp.status_code == 200
+
+    doc_resp = await client.get(f"/api/agent/sessions/{sid}/document")
+    nodes = doc_resp.json()["frames"][0]["nodes"]
+    assert not any(n["id"] == auto_id for n in nodes)
+    assert not any(n["id"] == btn_id for n in nodes)
+

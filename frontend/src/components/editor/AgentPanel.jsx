@@ -205,7 +205,7 @@ Example — batch update:
                 revoked
                   ? "bg-red-500"
                   : connected
-                  ? "bg-[#2563eb]"
+                  ? "bg-emerald-500"
                   : "bg-[#d4d4d8]"
               }`}
             />

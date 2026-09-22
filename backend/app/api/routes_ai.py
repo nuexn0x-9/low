@@ -314,9 +314,12 @@ async def apply_draft_by_id(
 
     return {
         "status": "success",
+        "applied": True,
         "project_id": proj.id,
         "revision": doc.revision,
+        "new_revision": doc.revision,
         "frames": existing_frames,
+        "document": {"frames": existing_frames},
         "applied_draft_id": draft.id,
     }
 
@@ -398,7 +401,10 @@ async def apply_ai_import_to_project(
 
     return {
         "status": "success",
+        "applied": True,
         "project_id": proj.id,
         "revision": doc.revision,
+        "new_revision": doc.revision,
         "frames": existing_frames,
+        "document": {"frames": existing_frames},
     }

@@ -25,6 +25,9 @@ import {
   Folder,
   Sliders,
   Palette,
+  Copy,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { dummyTemplates, importOptions } from "@/data/dummyTemplates";
 import { dummyComponents } from "@/data/dummyComponents";
@@ -165,6 +168,7 @@ export default function LeftSidebar({
   selectFrame,
   addScreen,
   deleteFrame,
+  onDuplicateFrame,
   onRenameFrame,
   nodes,
   selectedId,
@@ -173,6 +177,8 @@ export default function LeftSidebar({
   setSelectedIds,
   onToggleLock,
   onToggleHide,
+  onReorderLayer,
+  onRenameNode,
   onExport,
   onImportClick,
   onImportFile,
@@ -188,6 +194,8 @@ export default function LeftSidebar({
 }) {
   const [editingFrameId, setEditingFrameId] = useState(null);
   const [editingName, setEditingName] = useState("");
+  const [editingNodeId, setEditingNodeId] = useState(null);
+  const [editingNodeName, setEditingNodeName] = useState("");
   const [newComponentName, setNewComponentName] = useState("");
 
   const effectiveSelectedIds =
@@ -306,19 +314,34 @@ export default function LeftSidebar({
                   ) : (
                     <span className="flex-1 truncate">{f.name}</span>
                   )}
-                  {!isEditing && (
-                    <button
-                      data-testid={`frame-delete-${f.id}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteFrame(f.id);
-                      }}
-                      title="Delete screen"
-                      className="rounded p-0.5 text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100"
-                    >
-                      <Trash2 size={11} />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {onDuplicateFrame && (
+                      <button
+                        data-testid={`frame-duplicate-${f.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDuplicateFrame(f.id);
+                        }}
+                        title="Duplicate screen"
+                        className="rounded p-0.5 text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100 transition-colors"
+                      >
+                        <Copy size={11} />
+                      </button>
+                    )}
+                    {!isEditing && frames.length > 1 && (
+                      <button
+                        data-testid={`frame-delete-${f.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFrame(f.id);
+                        }}
+                        title="Delete screen"
+                        className="rounded p-0.5 text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100 transition-colors"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -333,18 +356,59 @@ export default function LeftSidebar({
               const selected = effectiveSelectedIds.includes(n.id);
               const isGroup = n.type === "group";
               const isInstance = n.type === "componentInstance";
+              const isChild = !!n.parentId;
+              const isEditing = editingNodeId === n.id;
               return (
                 <div
                   key={n.id}
                   data-testid={`layer-node-${n.id}`}
                   onClick={(e) => handleLayerClick(e, n.id)}
-                  className={`group flex cursor-pointer items-center justify-between px-3 py-1.5 text-xs transition-colors ${
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    setEditingNodeId(n.id);
+                    setEditingNodeName(n.name);
+                  }}
+                  className={`group flex cursor-pointer items-center justify-between py-1.5 text-xs transition-colors ${
+                    isChild ? "pl-6 pr-3 border-l-2 border-[#e4e4e7] ml-2" : "px-3"
+                  } ${
                     selected ? "bg-[#f4f4f5] font-medium text-[#18181b]" : "text-[#3f3f46] hover:bg-[#fafafa]"
                   }`}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <Icon size={13} className={selected ? "text-[#18181b]" : "text-[#a1a1aa]"} />
-                    <span className="truncate">{n.name}</span>
+                    {isEditing ? (
+                      <input
+                        data-testid={`node-rename-input-${n.id}`}
+                        autoFocus
+                        type="text"
+                        value={editingNodeName}
+                        onChange={(e) => setEditingNodeName(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.stopPropagation();
+                            const trimmed = editingNodeName.trim();
+                            if (trimmed && onRenameNode) {
+                              onRenameNode(n.id, trimmed);
+                            }
+                            setEditingNodeId(null);
+                          } else if (e.key === "Escape") {
+                            e.stopPropagation();
+                            setEditingNodeId(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          const trimmed = editingNodeName.trim();
+                          if (trimmed && onRenameNode) {
+                            onRenameNode(n.id, trimmed);
+                          }
+                          setEditingNodeId(null);
+                        }}
+                        className="h-5 flex-1 rounded border border-[#18181b] bg-white px-1 text-xs text-[#18181b] outline-none"
+                      />
+                    ) : (
+                      <span className="truncate">{n.name}</span>
+                    )}
                     {isGroup && (
                       <span className="rounded bg-[#e4e4e7] px-1 py-0.2 text-[9px] text-[#71717a]">
                         {n.children?.length || 0}
@@ -359,7 +423,33 @@ export default function LeftSidebar({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
+                    {onReorderLayer && (
+                      <>
+                        <button
+                          data-testid={`reorder-forward-${n.id}`}
+                          title="Bring forward (Ctrl+])"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderLayer(n.id, "forward");
+                          }}
+                          className="rounded p-0.5 text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100 transition-colors"
+                        >
+                          <ChevronUp size={11} />
+                        </button>
+                        <button
+                          data-testid={`reorder-backward-${n.id}`}
+                          title="Send backward (Ctrl+[)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReorderLayer(n.id, "backward");
+                          }}
+                          className="rounded p-0.5 text-[#a1a1aa] opacity-0 hover:text-[#18181b] group-hover:opacity-100 transition-colors"
+                        >
+                          <ChevronDown size={11} />
+                        </button>
+                      </>
+                    )}
                     <button
                       data-testid={`lock-node-${n.id}`}
                       title={n.locked ? "Unlock layer" : "Lock layer"}

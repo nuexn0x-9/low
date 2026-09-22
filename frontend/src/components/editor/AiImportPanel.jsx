@@ -19,6 +19,7 @@ import {
   validateAiImport,
   getAiProviders,
   getAiDraftHistory,
+  getAiDraftById,
   regenerateAiDraft,
   applyAiDraft,
 } from "@/data/aiApi";
@@ -215,31 +216,39 @@ export default function AiImportPanel({ projectId, onApplyPatch }) {
     }
   };
 
-  const selectHistoryDraft = (draft) => {
-    let parsedPatch = {};
-    let parsedVal = { valid: false, errors: [], warnings: [] };
+  const selectHistoryDraft = async (draft) => {
     try {
-      parsedPatch = typeof draft.draft_json === "string" ? JSON.parse(draft.draft_json) : draft.draft_json;
-    } catch {}
-    try {
-      parsedVal = typeof draft.validation_json === "string" ? JSON.parse(draft.validation_json) : draft.validation_json;
-    } catch {}
+      setLoading(true);
+      const detail = await getAiDraftById(draft.id);
+      let parsedPatch = detail.draft_json || detail.documentPatch || (detail.frames ? { frames: detail.frames } : {});
+      let parsedVal = detail.validation_json || detail.validation || { valid: true, errors: [], warnings: [] };
+      if (typeof parsedPatch === "string") {
+        try { parsedPatch = JSON.parse(parsedPatch); } catch {}
+      }
+      if (typeof parsedVal === "string") {
+        try { parsedVal = JSON.parse(parsedVal); } catch {}
+      }
 
-    setDraftResult({
-      draftId: draft.id,
-      status: draft.status,
-      resultType: draft.result_type,
-      documentPatch: parsedPatch,
-      validation: parsedVal,
-      provider: draft.provider,
-      model: draft.model,
-      durationMs: draft.duration_ms,
-      tokenUsage: draft.token_usage,
-    });
-    setType(draft.result_type || "screen");
-    setPrompt(draft.prompt || "");
-    setActiveView("summary");
-    toast.message(`Loaded draft from ${draft.provider}`);
+      setDraftResult({
+        draftId: detail.id,
+        status: detail.status,
+        resultType: detail.result_type,
+        documentPatch: parsedPatch,
+        validation: parsedVal,
+        provider: detail.provider,
+        model: detail.model,
+        durationMs: detail.duration_ms,
+        tokenUsage: detail.token_usage,
+      });
+      setType(detail.result_type || "screen");
+      setPrompt(detail.prompt || "");
+      setActiveView("summary");
+      toast.message(`Loaded draft from ${detail.provider}`);
+    } catch (err) {
+      toast.error(err.message || "Failed to load draft details");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const frames = draftResult?.documentPatch?.frames || [];

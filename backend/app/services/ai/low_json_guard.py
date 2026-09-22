@@ -21,7 +21,7 @@ ALLOWED_NODE_TYPES = {
 }
 
 
-ALLOWED_PROTOTYPE_ACTIONS = {"none", "navigate", "back", "overlay"}
+ALLOWED_PROTOTYPE_ACTIONS = {"none", "navigate", "back", "overlay", "modal"}
 ALLOWED_OVERLAY_TYPES = {"bottom-sheet", "centered-dialog"}
 
 ALLOWED_AUTO_LAYOUT_DIRECTIONS = {"vertical", "horizontal"}
@@ -338,11 +338,13 @@ def validate_and_guard_ai_patch(
                     guarded_proto["target"] = str(proto["target"])
                 if proto.get("transition"):
                     guarded_proto["transition"] = str(proto["transition"])
-                if action == "overlay":
-                    o_type = proto.get("overlayType", "bottom-sheet")
-                    if o_type not in ALLOWED_OVERLAY_TYPES:
-                        errors.append(f"Node '{n_name}' invalid overlayType '{o_type}'")
-                        continue
+                if action in ("overlay", "modal"):
+                    raw_ot = str(proto.get("overlayType", "bottom-sheet")).lower().replace("_", "-")
+                    if raw_ot == "bottomsheet":
+                        raw_ot = "bottom-sheet"
+                    elif raw_ot == "centereddialog":
+                        raw_ot = "centered-dialog"
+                    o_type = raw_ot if raw_ot in ALLOWED_OVERLAY_TYPES else "bottom-sheet"
                     guarded_proto["overlayType"] = o_type
                     guarded_proto["dismissOnOutsideClick"] = proto.get("dismissOnOutsideClick", True)
 

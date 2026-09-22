@@ -163,6 +163,36 @@ def _normalize_element(el: dict) -> dict:
 ALLOWED_ACTIONS = set(ACTION_SCOPES.keys())
 
 
+def _collect_descendant_ids(nodes: List[Dict[str, Any]], target_ids: List[str]) -> set:
+    all_to_delete = set(target_ids)
+    to_check = list(target_ids)
+    while to_check:
+        curr_id = to_check.pop()
+        node = next((n for n in nodes if n.get("id") == curr_id), None)
+        if node and isinstance(node.get("children"), list):
+            for cid in node["children"]:
+                if cid not in all_to_delete:
+                    all_to_delete.add(cid)
+                    to_check.append(cid)
+        for n in nodes:
+            if n.get("parentId") == curr_id and n.get("id") not in all_to_delete:
+                all_to_delete.add(n.get("id"))
+                to_check.append(n.get("id"))
+    return all_to_delete
+
+
+def _purge_nodes_and_clean_parents(nodes: List[Dict[str, Any]], target_ids: List[str]) -> List[Dict[str, Any]]:
+    all_to_delete = _collect_descendant_ids(nodes, target_ids)
+    cleaned = []
+    for n in nodes:
+        if n.get("id") in all_to_delete:
+            continue
+        if isinstance(n.get("children"), list):
+            n["children"] = [cid for cid in n["children"] if cid not in all_to_delete]
+        cleaned.append(n)
+    return cleaned
+
+
 def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[Any, List[dict]]:
     """Apply an agent action synchronously to the document. Returns (result, new_doc)."""
     if action not in ALLOWED_ACTIONS:
@@ -217,9 +247,20 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         cloned_frame = copy.deepcopy(f)
         cloned_frame["id"] = _new_id("frame")
         cloned_frame["name"] = params.get("name") or f"{f.get('name', 'Screen')} Copy"
-        # Regenerate node IDs
+        # Regenerate node IDs and remap hierarchy
+        id_map = {}
         for node in cloned_frame.get("nodes", []):
-            node["id"] = _new_id("node")
+            old_id = node.get("id")
+            new_id = _new_id("node")
+            id_map[old_id] = new_id
+            node["id"] = new_id
+
+        for node in cloned_frame.get("nodes", []):
+            if node.get("parentId") and node["parentId"] in id_map:
+                node["parentId"] = id_map[node["parentId"]]
+            if isinstance(node.get("children"), list):
+                node["children"] = [id_map.get(cid, cid) for cid in node["children"]]
+
         new_doc = doc + [cloned_frame]
         return {"ok": True, "screenId": cloned_frame["id"], "name": cloned_frame["name"]}, new_doc
 
@@ -301,18 +342,31 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         f = _find_frame(doc, sid)
         if not f:
             raise ValueError("screen not found")
-        el = next((n for n in f.get("nodes", []) if n["id"] == eid), None)
+        nodes = f.get("nodes", [])
+        el = next((n for n in nodes if n["id"] == eid), None)
         if not el:
             raise ValueError("element not found")
         offset_x = params.get("offsetX", 20)
         offset_y = params.get("offsetY", 20)
-        cloned = copy.deepcopy(el)
-        cloned["id"] = _new_id("node")
-        cloned["name"] = f"{el.get('name', 'Element')} Copy"
-        cloned["x"] = float(el.get("x", 0)) + float(offset_x)
-        cloned["y"] = float(el.get("y", 0)) + float(offset_y)
-        f.setdefault("nodes", []).append(cloned)
-        return {"ok": True, "elementId": cloned["id"], "name": cloned["name"]}, doc
+        all_ids = _collect_descendant_ids(nodes, [eid])
+        to_duplicate = [n for n in nodes if n.get("id") in all_ids]
+        id_map = {n["id"]: _new_id("node") for n in to_duplicate}
+        new_nodes = []
+        for n in to_duplicate:
+            cloned = copy.deepcopy(n)
+            cloned["id"] = id_map[n["id"]]
+            cloned["name"] = f"{n.get('name', 'Element')} Copy"
+            cloned["x"] = float(n.get("x", 0)) + float(offset_x)
+            cloned["y"] = float(n.get("y", 0)) + float(offset_y)
+            if cloned.get("parentId") and cloned["parentId"] in id_map:
+                cloned["parentId"] = id_map[cloned["parentId"]]
+            else:
+                cloned["parentId"] = None
+            if isinstance(cloned.get("children"), list):
+                cloned["children"] = [id_map.get(cid, cid) for cid in cloned["children"]]
+            new_nodes.append(cloned)
+        f.setdefault("nodes", []).extend(new_nodes)
+        return {"ok": True, "elementId": id_map[eid], "name": f"{el.get('name', 'Element')} Copy"}, doc
 
     if action == "delete_element":
         sid = params.get("screenId")
@@ -322,7 +376,7 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         f = _find_frame(doc, sid)
         if not f:
             raise ValueError("screen not found")
-        f["nodes"] = [n for n in f.get("nodes", []) if n["id"] != eid]
+        f["nodes"] = _purge_nodes_and_clean_parents(f.get("nodes", []), [eid])
         return {"ok": True, "deletedElementId": eid}, doc
 
     if action == "link_prototype":
@@ -385,7 +439,7 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         patch = params.get("patch")
         if not patch or not isinstance(patch, dict):
             raise ValueError("patch object is required for apply_ai_import")
-        valid, clean_patch, warnings, errors = validate_and_guard_ai_patch(patch)
+        valid, clean_patch, errors, warnings = validate_and_guard_ai_patch(patch)
         if not valid:
             raise ValueError(f"Invalid AI patch: {'; '.join(errors)}")
 
@@ -459,6 +513,8 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
             "children": node_ids,
             "style": {},
         }
+        for n in matched_nodes:
+            n["parentId"] = group_id
         # Insert group node at position of first selected node
         first_idx = min(nodes.index(n) for n in matched_nodes)
         nodes.insert(first_idx, group_node)
@@ -482,6 +538,11 @@ def apply_action(doc: List[dict], action: str, params: Dict[str, Any]) -> Tuple[
         group_node = next((n for n in nodes if n.get("id") == group_id and n.get("type") == "group"), None)
         if not group_node:
             raise ValueError(f"group '{group_id}' not found in screen")
+
+        child_ids = set(group_node.get("children", []))
+        for n in nodes:
+            if n.get("parentId") == group_id or n.get("id") in child_ids:
+                n["parentId"] = None
 
         nodes.remove(group_node)
         return {"ok": True, "ungroupedId": group_id, "children": group_node.get("children", [])}, doc
@@ -1439,8 +1500,8 @@ async def execute_agent_action(
         provider = get_ai_provider(provider_name)
 
         start_time = datetime.now(timezone.utc)
-        raw_patch, usage_info = await provider.generate_low_patch(result_type, prompt)
-        valid, clean_patch, warnings, errors = validate_and_guard_ai_patch(raw_patch)
+        raw_patch, usage_info = await provider.generate_low_patch(prompt=prompt, result_type=result_type)
+        valid, clean_patch, errors, warnings = validate_and_guard_ai_patch(raw_patch, result_type=result_type)
         duration_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
 
         # Save draft
@@ -1488,7 +1549,7 @@ async def execute_agent_action(
             raise HTTPException(status_code=404, detail="AI draft not found")
 
         patch = json.loads(draft.draft_json)
-        valid, clean_patch, warnings, errors = validate_and_guard_ai_patch(patch)
+        valid, clean_patch, errors, warnings = validate_and_guard_ai_patch(patch, result_type=draft.result_type)
         if not valid:
             raise HTTPException(status_code=400, detail=f"Cannot apply invalid draft: {errors}")
 

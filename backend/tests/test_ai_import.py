@@ -91,6 +91,36 @@ async def test_validate_output_and_safety_guards():
         assert res_inv.status_code == 200
         assert res_inv.json()["valid"] is False
 
+        # 3. Prototype action modal should be valid
+        modal_patch = {
+            "frames": [
+                {
+                    "id": "f1",
+                    "name": "Screen 1",
+                    "nodes": [
+                        {
+                            "id": "n1",
+                            "type": "button",
+                            "name": "Open Sheet",
+                            "x": 10,
+                            "y": 10,
+                            "width": 100,
+                            "height": 40,
+                            "prototype": {
+                                "action": "modal",
+                                "target": "f_sheet",
+                                "overlayType": "bottom-sheet",
+                                "dismissOnOutsideClick": True,
+                            },
+                        }
+                    ],
+                }
+            ]
+        }
+        res_modal = await cl.post("/api/ai/import/validate", json={"documentPatch": modal_patch})
+        assert res_modal.status_code == 200
+        assert res_modal.json()["valid"] is True
+
 
 @pytest.mark.asyncio
 async def test_apply_ai_import_with_snapshot_and_revision():

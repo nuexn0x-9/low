@@ -27,8 +27,11 @@ export async function getAgentSchema() {
   return res.json();
 }
 
-export async function createAgentSession(name, document, preset = "full_editor_assistant", scopes = null) {
+export async function createAgentSession(name, document, preset = "full_editor_assistant", scopes = null, projectId = null) {
   const payload = { name, document, preset };
+  if (projectId) {
+    payload.project_id = projectId;
+  }
   if (scopes && Array.isArray(scopes) && scopes.length > 0) {
     payload.scopes = scopes;
   }

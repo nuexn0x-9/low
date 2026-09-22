@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { FRAME } from "@/data/storage";
 import NodeView from "@/components/editor/NodeView";
 
-const HANDLES = ["nw", "ne", "sw", "se"];
+const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 
 export default function CanvasArea({
   frames,
@@ -17,6 +17,7 @@ export default function CanvasArea({
   endTransaction,
   onDropItem,
   zoom = 1,
+  setZoom,
   mode,
   snappingEnabled = true,
   components = [],
@@ -24,10 +25,36 @@ export default function CanvasArea({
 }) {
   const drag = useRef(null);
   const frameRefs = useRef({});
+  const containerRef = useRef(null);
+  const panRef = useRef(null);
   const [guides, setGuides] = useState([]); // [{ type: 'v'|'h', pos: number }]
   const [marquee, setMarquee] = useState(null); // { frameId, startX, startY, currX, currY }
   const [editingTextNodeId, setEditingTextNodeId] = useState(null);
   const [editingTextValue, setEditingTextValue] = useState("");
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+
+  // Space key listener for canvas panning
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+      if (e.code === "Space" && !e.repeat) {
+        setIsSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e) => {
+      if (e.code === "Space") {
+        setIsSpacePressed(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   const saveEditText = () => {
     if (editingTextNodeId) {
@@ -255,12 +282,14 @@ export default function CanvasArea({
       if (d.handle.includes("e")) w = Math.max(8, d.origW + dx);
       if (d.handle.includes("s")) h = Math.max(8, d.origH + dy);
       if (d.handle.includes("w")) {
-        w = Math.max(8, d.origW - dx);
-        x = d.origX + dx;
+        const rawW = d.origW - dx;
+        w = Math.max(8, rawW);
+        x = d.origX + (d.origW - w);
       }
       if (d.handle.includes("n")) {
-        h = Math.max(8, d.origH - dy);
-        y = d.origY + dy;
+        const rawH = d.origH - dy;
+        h = Math.max(8, rawH);
+        y = d.origY + (d.origH - h);
       }
       setGuides([]);
       updateNodeLive(d.id, {
@@ -370,11 +399,87 @@ export default function CanvasArea({
     onDropItem(frame.id, payload, pos);
   };
 
+  // Canvas Panning Handler (Space + Drag or Middle Click)
+  const handleCanvasMouseDown = (e) => {
+    if (editingTextNodeId) saveEditText();
+
+    if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const c = containerRef.current;
+      if (!c) return;
+
+      setIsPanning(true);
+      panRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        scrollLeft: c.scrollLeft,
+        scrollTop: c.scrollTop,
+      };
+
+      const onPanMove = (moveEvt) => {
+        if (!panRef.current || !containerRef.current) return;
+        const dx = moveEvt.clientX - panRef.current.startX;
+        const dy = moveEvt.clientY - panRef.current.startY;
+        containerRef.current.scrollLeft = panRef.current.scrollLeft - dx;
+        containerRef.current.scrollTop = panRef.current.scrollTop - dy;
+      };
+
+      const onPanUp = () => {
+        panRef.current = null;
+        setIsPanning(false);
+        window.removeEventListener("mousemove", onPanMove);
+        window.removeEventListener("mouseup", onPanUp);
+      };
+
+      window.addEventListener("mousemove", onPanMove);
+      window.addEventListener("mouseup", onPanUp);
+      return;
+    }
+
+    setSelection([]);
+  };
+
+  // Ctrl + Wheel Zoom
+  const handleWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.1 : -0.1;
+      if (setZoom) {
+        setZoom((prev) => Math.min(2.5, Math.max(0.25, Math.round((prev + delta) * 100) / 100)));
+      }
+    }
+  };
+
+  const getHandleStyle = (h) => {
+    const isW = h.includes("w");
+    const isE = h.includes("e");
+    const isN = h.includes("n");
+    const isS = h.includes("s");
+
+    const left = isW ? -4 : isE ? undefined : "calc(50% - 4px)";
+    const right = isE ? -4 : undefined;
+    const top = isN ? -4 : isS ? undefined : "calc(50% - 4px)";
+    const bottom = isS ? -4 : undefined;
+
+    return {
+      cursor: `${h}-resize`,
+      left,
+      right,
+      top,
+      bottom,
+    };
+  };
+
   return (
     <main
       data-testid="canvas-area"
-      onMouseDown={() => setSelection([])}
-      className="low-scroll dot-grid low-select-none relative flex-1 overflow-auto"
+      ref={containerRef}
+      onMouseDown={handleCanvasMouseDown}
+      onWheel={handleWheel}
+      className={`low-scroll dot-grid low-select-none relative flex-1 overflow-auto ${
+        isPanning ? "cursor-grabbing" : isSpacePressed ? "cursor-grab" : ""
+      }`}
     >
       <div className="flex min-h-full items-start p-16">
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }} className="flex items-start gap-16">
@@ -429,6 +534,7 @@ export default function CanvasArea({
                     if (!isActive) {
                       e.stopPropagation();
                       selectFrame(frame.id);
+                      setSelection([]);
                     } else {
                       startMarquee(e, frame);
                     }
@@ -495,7 +601,6 @@ export default function CanvasArea({
 
                   {/* Render Visible Nodes */}
                   {visibleNodes.map((node) => {
-                    const isNodeSelected = effectiveSelectedIds.includes(node.id);
                     return (
                       <div
                         key={node.id}
@@ -504,9 +609,7 @@ export default function CanvasArea({
                             saveEditText();
                           }
                           if (!isActive) {
-                            e.stopPropagation();
                             selectFrame(frame.id);
-                            return;
                           }
                           startMove(e, node);
                         }}
@@ -521,7 +624,7 @@ export default function CanvasArea({
                           position: "absolute",
                           left: 0,
                           top: 0,
-                          cursor: node.locked ? "default" : isActive ? "move" : "default",
+                          cursor: node.locked ? "default" : "move",
                           pointerEvents: node.locked ? "none" : "auto",
                         }}
                       >
@@ -578,7 +681,7 @@ export default function CanvasArea({
                           textAlign: editNode.style?.textAlign || editNode.style?.align || "left",
                           color: editNode.style?.color || "#18181b",
                           background: "#ffffff",
-                          border: "2px solid #2563eb",
+                          border: "2px solid #18181b",
                           borderRadius: 4,
                           padding: "2px 6px",
                           outline: "none",
@@ -590,7 +693,7 @@ export default function CanvasArea({
                     );
                   })()}
 
-                  {/* Single Selection Outline with Handles */}
+                  {/* Single Selection Outline with 8 Handles */}
                   {singleSelected && (
                     <div
                       data-testid="selection-outline"
@@ -600,29 +703,24 @@ export default function CanvasArea({
                         top: singleSelected.y,
                         width: singleSelected.width,
                         height: singleSelected.height,
-                        outline: "1.5px solid #2563eb",
+                        outline: "1.5px solid #18181b",
                         outlineOffset: 0,
                       }}
                     >
                       {HANDLES.map((h) => (
                         <div
                           key={h}
+                          data-testid={`resize-handle-${h}`}
                           onMouseDown={(e) => {
                             e.stopPropagation();
                             startResize(e, singleSelected, h);
                           }}
-                          className="pointer-events-auto absolute h-2 w-2 rounded-[2px] border border-[#2563eb] bg-white"
-                          style={{
-                            cursor: `${h}-resize`,
-                            left: h.includes("w") ? -4 : undefined,
-                            right: h.includes("e") ? -4 : undefined,
-                            top: h.includes("n") ? -4 : undefined,
-                            bottom: h.includes("s") ? -4 : undefined,
-                          }}
+                          className="pointer-events-auto absolute h-2 w-2 rounded-[2px] border border-[#18181b] bg-white"
+                          style={getHandleStyle(h)}
                         />
                       ))}
                       <div
-                        className="absolute -top-5 left-0 rounded-[3px] bg-[#2563eb] px-1.5 text-[10px] font-medium text-white"
+                        className="absolute -top-5 left-0 rounded-[3px] bg-[#18181b] px-1.5 text-[10px] font-medium text-white shadow-sm"
                         style={{ whiteSpace: "nowrap" }}
                       >
                         {singleSelected.name}
@@ -643,7 +741,7 @@ export default function CanvasArea({
                             top: sn.y,
                             width: sn.width,
                             height: sn.height,
-                            outline: "1px dashed #2563eb",
+                            outline: "1px dashed #18181b",
                             outlineOffset: 0,
                           }}
                         />
@@ -656,12 +754,12 @@ export default function CanvasArea({
                           top: multiBounds.y,
                           width: multiBounds.width,
                           height: multiBounds.height,
-                          outline: "1.5px solid #2563eb",
+                          outline: "1.5px solid #18181b",
                           outlineOffset: 0,
                         }}
                       >
                         <div
-                          className="absolute -top-5 left-0 rounded-[3px] bg-[#2563eb] px-1.5 text-[10px] font-medium text-white shadow-sm"
+                          className="absolute -top-5 left-0 rounded-[3px] bg-[#18181b] px-1.5 text-[10px] font-medium text-white shadow-sm"
                           style={{ whiteSpace: "nowrap" }}
                         >
                           {selectedNodes.length} selected
@@ -674,7 +772,7 @@ export default function CanvasArea({
                   {marquee && marquee.frameId === frame.id && (
                     <div
                       data-testid="marquee-selection-box"
-                      className="pointer-events-none absolute z-30 border border-dashed border-[#2563eb] bg-[#2563eb]/10"
+                      className="pointer-events-none absolute z-30 border border-dashed border-[#18181b] bg-[#18181b]/10"
                       style={{
                         left: Math.min(marquee.startX, marquee.currX),
                         top: Math.min(marquee.startY, marquee.currY),
@@ -693,8 +791,8 @@ export default function CanvasArea({
                         className="pointer-events-none absolute z-20"
                         style={{
                           ...(g.type === "v"
-                            ? { left: g.pos, top: 0, bottom: 0, width: 1, borderLeft: "1px dashed #2563eb" }
-                            : { top: g.pos, left: 0, right: 0, height: 1, borderTop: "1px dashed #2563eb" }),
+                            ? { left: g.pos, top: 0, bottom: 0, width: 1, borderLeft: "1px dashed #18181b" }
+                            : { top: g.pos, left: 0, right: 0, height: 1, borderTop: "1px dashed #18181b" }),
                           opacity: 0.75,
                         }}
                       />
